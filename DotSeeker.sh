@@ -4,10 +4,10 @@
 ## Objective: Get 30 dots within a minute.
 
 
-initialseconds="60"
-minscore="30"
-res_y="24"
-res_x="80"
+minscore=30
+time_limit=60
+res_y=24
+res_x=80
 
 
 set -o pipefail
@@ -19,7 +19,7 @@ clear
 
 function update {
 	tput cup 0 0
-	printf '\e[1;32m\n  %2s' $(<"$shv_secrem_path")
+	printf '\e[1;32m\n  %2s' $time_remaining
 	tput cup "1" "$((res_x-2-${#dotcount}))"
 	echo -ne "\e[1;34m$dotcount\e[0m"
 	
@@ -105,19 +105,9 @@ function dot_check {
 	fi
 }
 
-function keep_time {
-	while [ "loop" ]; do
-		sleep "1.0"
-		echo "$((`<"$shv_secrem_path"` -1))" >"$shv_secrem_path"
-	done
-}
-
 function safe_exit {
 	stty echo
 	tput cnorm
-	kill -SIGKILL "$keep_time_pid" 2>/dev/null
-	wait "$keep_time_pid" 2>/dev/null
-	rm "$shv_secrem_path" 2>/dev/null
 	clear
 	echo
 	exit 0
@@ -199,24 +189,34 @@ dotcount=0
 plr_ppos_x=$plr_cpos_x
 ((plr_cpos_y=$res_y/2))
 plr_ppos_y=$plr_cpos_y
-shv_secrem_path="/dev/shm/dotseek_secondsrem"
-echo "$initialseconds" >"$shv_secrem_path"
 
 screen_title
 clear
 
-keep_time &
-keep_time_pid="$!"
+time_start=$(( $(date +%s) + 1 ))
+tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
+echo '"Loading"...'
+while (( $(date +%s) < time_start )); do
+	sleep 0.01
+done
+tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
+echo -ne "\e[1;40m            \e[0m"
+
+time_remaining=$time_limit
+
 update
 
 while [[ "loop" ]]; do
 	input
+	time_delta=$(( $(date +%s) - time_start ))
+	time_remaining=$(( time_limit - time_delta ))
+
 	control
 	if [[ "$dot" = "false" ]]; then
 		dot_spawn
 	fi
 	dot_check
-	if [[ "$(<"$shv_secrem_path")" = "0" ]]; then
+	if ((time_remaining == 0)); then
 		endgame
 		break
 	fi
