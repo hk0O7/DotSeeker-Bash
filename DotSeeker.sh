@@ -71,12 +71,23 @@ function go {
 }
 
 function input {
-	read -rn1 -t.05 ui
-	case "$ui" in
-		[wWkK]) export direction="up";;
-		[sSjJ]) export direction="down";;
-		[aAhH]) export direction="left";;
-		[dDlL]) export direction="right";;
+	sleep 0.04
+	local lui ui
+	while read -rn1 -t 0.0001 ui; do lui=$ui; done  # (clears out the buffer while saving the last keystroke)
+
+	#local readtimens_target=50000000
+	#local readtimens_start=$(date +%s%N)
+	#read -rn1 -t "$(printf '0.%09d' $readtimens_target)" ui
+	#local readtimens_remaining=$(( readtimens_target - ( $(date +%s%N) - readtimens_start ) ))
+	#((readtimens_remaining > 0)) && { sleep "$(printf '0.%09d' $readtimens_remaining)"; echo slept >> ./debug.txt; }
+	#echo readtimens_delta:$readtimens_delta readtimens_remaining:$readtimens_remaining >> ./debug.txt
+	#echo readtimens_remaining:$readtimens_remaining >> ./debug.txt
+	#utns_t=500000000; utns_b=$(date +%s%N); read -rsn1 -t "0.$utns_t" ui; utns_a=$(date +%s%N); utns_d=$(( utns_a - utns_b )); utns_r=$(( utns_t - utns_d )); ((utns_r > 0)) && sleep "0.$utns_r"; echo utns_d:$utns_d utns_r:$utns_r ui:$ui
+	case "$lui" in
+		[wWkK]) direction="up";;
+		[sSjJ]) direction="down";;
+		[aAhH]) direction="left";;
+		[dDlL]) direction="right";;
 		q|Q) exit;;
 	esac
 }
