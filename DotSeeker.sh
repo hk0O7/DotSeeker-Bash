@@ -10,6 +10,8 @@ res_y="24"
 res_x="80"
 
 
+set -o pipefail
+
 tput civis
 trap "safe_exit" EXIT
 clear
@@ -124,9 +126,18 @@ function screen_lose {
 function screen_win {
 	clear
 	tput cup "$(( (res_y/2)-1 ))" "$(( (res_x/2)-7 ))"
-	echo -e "\e[1;32mYOU ARE WINNER\e[0m"
-	tput cup "$(( (res_y/2)+1 ))" "$(( (res_x/2)-5 ))"
-	echo -e "\e[1;32mScore: \e[1;34m"$pointcount"\e[0m"
+	echo -e '\e[1;32mYOU ARE WINNER\e[0m'
+	if ((pointcount > highscore)); then
+		highscore_saved=0
+		highscore_pattern='^(highscore=)'"$highscore"'(.*)'
+		if highscore_lineno=$(grep -nE -m1 "$highscore_pattern" "$0" | cut -d: -f1); then
+			sed -ri "${highscore_lineno}s/${highscore_pattern}/\1${pointcount}\2/" "$0" && highscore_saved=1
+		fi
+		tput cup "$(( (res_y/2)+1 ))" "$(( (res_x/2)-7 ))"
+		echo -e '\e[1;33mNew high-score!\e[0m'
+	fi
+	tput cup "$(( (res_y/2)+1+highscore_saved ))" "$(( (res_x/2)-5 ))"
+	echo -e '\e[1;32mScore: \e[1;34m'"$pointcount"'\e[0m'
 }
 
 function endgame {
@@ -154,7 +165,11 @@ function screen_title {
 	echo 'W,A,S,D (move)'
 	tput cup "13" "$(( (res_x/2)-7 ))"
 	echo 'Q - Quit game'
-	tput cup "$((res_y-5))" "$(( (res_x/2)-12 ))"
+	if ((highscore >= minscore)); then
+		tput cup 15 "$(( (res_x/2)-20 ))"
+		echo "High-score:  $highscore"
+	fi
+	tput cup 18 "$(( (res_x/2)-12 ))"
 	echo 'Press any key to start!'
 	read -s -t 0.5 -N9
 	read -s -n1 title_keystroke
@@ -164,6 +179,8 @@ function screen_title {
 	esac
 	unset -v title_keystroke
 }
+
+highscore=0  # (updated by program itself)
 
 point=false
 pointcount=0
@@ -190,4 +207,3 @@ while [[ "loop" ]]; do
 		break
 	fi
 done
-
