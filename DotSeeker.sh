@@ -23,10 +23,10 @@ function update {
 	tput cup "1" "$((res_x-2-${#dotcount}))"
 	echo -ne "\e[1;34m$dotcount\e[0m"
 	
-	tput cup "$cpos_y" "$cpos_x"
+	tput cup "$plr_cpos_y" "$plr_cpos_x"
 	echo -ne "\e[1;47m  \e[0m"
 	if [[ "$dot" = "true" ]]; then
-		tput cup "$ppos_y" "$ppos_x"
+		tput cup "$dot_ppos_y" "$dot_ppos_x"
 		echo -ne "\e[1;43m  \e[0m"
 	fi
 }
@@ -34,32 +34,32 @@ function update {
 function go {
 	case "$1" in
 		"up")
-			if [[ "$cpos_y" -le "0" ]]; then
+			if [[ "$plr_cpos_y" -le "0" ]]; then
 				update
 				return
 			fi
-			((cpos_y--))
+			((plr_cpos_y--))
 			;;
 		"down")
-			if [[ "$cpos_y" -ge "$((res_y-1))" ]]; then
+			if [[ "$plr_cpos_y" -ge "$((res_y-1))" ]]; then
 				update
 				return
 			fi
-			((cpos_y++))
+			((plr_cpos_y++))
 			;;
 		"left")
-			if [[ "$cpos_x" -le "0" ]]; then
+			if [[ "$plr_cpos_x" -le "0" ]]; then
 				update
 				return
 			fi
-			((cpos_x-=2))
+			((plr_cpos_x-=2))
 			;;
 		"right")
-			if [[ "$cpos_x" -ge "$((res_x-3))" ]]; then
+			if [[ "$plr_cpos_x" -ge "$((res_x-3))" ]]; then
 				update
 				return
 			fi
-			((cpos_x+=2))
+			((plr_cpos_x+=2))
 			;;
 	esac
 	update
@@ -87,16 +87,16 @@ function control {
 }
 
 function dot_spawn {
-	((ppos_y=RANDOM%(res_y)))
-	((ppos_x=(RANDOM%((res_x-2)/2))*2))
+	((dot_ppos_y=RANDOM%(res_y)))
+	((dot_ppos_x=(RANDOM%((res_x-2)/2))*2))
 	dot=true
-}	
+}
 
 function dot_check {
-	if [[ "$dot" = "true" && "$cpos_y" = "$ppos_y" && "$cpos_x" = "$ppos_x" ]]; then
+	if [[ "$dot" = "true" && "$plr_cpos_y" = "$dot_ppos_y" && "$plr_cpos_x" = "$dot_ppos_x" ]]; then
 		((dotcount++))
 		dot=false
-		unset -v ppos_y ppos_x
+		unset -v dot_ppos_y dot_ppos_x
 	fi
 }
 
@@ -189,8 +189,8 @@ highscore=0  # (updated by program itself)
 
 dot=false
 dotcount=0
-((cpos_y=$res_y/2))
-((cpos_x=$res_x/2))
+((plr_cpos_y=$res_y/2))
+((plr_cpos_x=$res_x/2))
 shv_secrem_path="/dev/shm/dotseek_secondsrem"
 echo "$initialseconds" >"$shv_secrem_path"
 
