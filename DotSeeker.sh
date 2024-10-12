@@ -13,25 +13,30 @@ res_x="80"
 set -o pipefail
 
 tput civis
+stty -echo
 trap "safe_exit" EXIT
 clear
 
 function update {
-	clear
-	
-	echo -ne "\e[1;32m\n  `<"$shv_secrem_path"`"
+	tput cup 0 0
+	printf '\e[1;32m\n  %2s' $(<"$shv_secrem_path")
 	tput cup "1" "$((res_x-2-${#dotcount}))"
 	echo -ne "\e[1;34m$dotcount\e[0m"
 	
 	tput cup "$plr_cpos_y" "$plr_cpos_x"
 	echo -ne "\e[1;47m  \e[0m"
-	if [[ "$dot" = "true" ]]; then
-		tput cup "$dot_ppos_y" "$dot_ppos_x"
+	if [[ $plr_cpos_x != $plr_ppos_x || $plr_cpos_y != $plr_ppos_y ]]; then
+		tput cup $plr_ppos_y $plr_ppos_x
+		echo -ne "\e[1;40m  \e[0m"
+	fi
+	if [[ "$dot" = "true" && $dot_cpos_x != $plr_cpos_x && $dot_cpos_y != $plr_cpos_y ]]; then
+		tput cup "$dot_cpos_y" "$dot_cpos_x"
 		echo -ne "\e[1;43m  \e[0m"
 	fi
 }
 
 function go {
+	plr_ppos_x=$plr_cpos_x plr_ppos_y=$plr_cpos_y
 	case "$1" in
 		"up")
 			if [[ "$plr_cpos_y" -le "0" ]]; then
@@ -66,7 +71,7 @@ function go {
 }
 
 function input {
-	read -rsn1 -t.05 ui
+	read -rn1 -t.05 ui
 	case "$ui" in
 		[wWkK]) export direction="up";;
 		[sSjJ]) export direction="down";;
@@ -87,16 +92,16 @@ function control {
 }
 
 function dot_spawn {
-	((dot_ppos_y=RANDOM%(res_y)))
-	((dot_ppos_x=(RANDOM%((res_x-2)/2))*2))
+	((dot_cpos_y=RANDOM%(res_y)))
+	((dot_cpos_x=(RANDOM%((res_x-2)/2))*2))
 	dot=true
 }
 
 function dot_check {
-	if [[ "$dot" = "true" && "$plr_cpos_y" = "$dot_ppos_y" && "$plr_cpos_x" = "$dot_ppos_x" ]]; then
+	if [[ "$dot" = "true" && "$plr_cpos_y" = "$dot_cpos_y" && "$plr_cpos_x" = "$dot_cpos_x" ]]; then
 		((dotcount++))
 		dot=false
-		unset -v dot_ppos_y dot_ppos_x
+		unset -v dot_cpos_y dot_cpos_x
 	fi
 }
 
@@ -108,12 +113,13 @@ function keep_time {
 }
 
 function safe_exit {
+	stty echo
+	tput cnorm
 	kill -SIGKILL "$keep_time_pid" 2>/dev/null
 	wait "$keep_time_pid" 2>/dev/null
 	rm "$shv_secrem_path" 2>/dev/null
 	clear
 	echo
-	tput cnorm
 	exit 0
 }
 
@@ -151,8 +157,8 @@ function endgame {
 	else
 		screen_win
 	fi
-	read -s -t1 -N9
-	read -s -n1
+	read -t1 -N9
+	read -n1
 	safe_exit
 }
 
@@ -176,8 +182,8 @@ function screen_title {
 	fi
 	tput cup 18 "$(( (res_x/2)-12 ))"
 	echo 'Press any key to start!'
-	read -s -t 0.5 -N9
-	read -s -n1 title_keystroke
+	read -t 0.5 -N9
+	read -n1 title_keystroke
 	case "$title_keystroke" in
 		Q|q) safe_exit;;
 		*) :;;
@@ -189,12 +195,15 @@ highscore=0  # (updated by program itself)
 
 dot=false
 dotcount=0
-((plr_cpos_y=$res_y/2))
 ((plr_cpos_x=$res_x/2))
+plr_ppos_x=$plr_cpos_x
+((plr_cpos_y=$res_y/2))
+plr_ppos_y=$plr_cpos_y
 shv_secrem_path="/dev/shm/dotseek_secondsrem"
 echo "$initialseconds" >"$shv_secrem_path"
 
 screen_title
+clear
 
 keep_time &
 keep_time_pid="$!"
