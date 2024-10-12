@@ -163,7 +163,7 @@ function screen_title {
 	tput cup "5" "$(( (res_x/2)-6 ))"
 	echo '|/O'$([[ $(date +%m%d) == 1031 ]] && echo O)'T·)EEKER'
 	tput cup "9" "$(( (res_x/2)-20 ))"
-	echo 'Objective: Get 30 dots within a minute.'
+	echo "Objective: Get ${minscore} dots within a minute."
 	tput cup "12" "$(( (res_x/2)-20 ))"
 	echo -n 'Controls:'
 	tput cup "12" "$(( (res_x/2)-7 ))"
