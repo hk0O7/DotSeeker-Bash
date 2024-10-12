@@ -1,6 +1,6 @@
 #!/bin/bash
 ## DotSeeker
-## Controls: WASD
+## Controls: WASD / HJKL
 ## Objective: Get 30 dots within a minute.
 
 
@@ -68,10 +68,10 @@ function go {
 function input {
 	read -rsn1 -t.05 ui
 	case "$ui" in
-		w|W) export direction="up";;
-		s|S) export direction="down";;
-		a|A) export direction="left";;
-		d|D) export direction="right";;
+		[wWkK]) export direction="up";;
+		[sSjJ]) export direction="down";;
+		[aAhH]) export direction="left";;
+		[dDlL]) export direction="right";;
 		q|Q) exit;;
 	esac
 }
@@ -161,18 +161,18 @@ function screen_title {
 	tput cup "4" "$(( (res_x/2)-6 ))"
 	echo '|\  ('
 	tput cup "5" "$(( (res_x/2)-6 ))"
-	echo '|/OT·)EEKER'
+	echo '|/O'$([[ $(date +%m%d) == 1031 ]] && echo O)'T·)EEKER'
 	tput cup "9" "$(( (res_x/2)-20 ))"
 	echo 'Objective: Get 30 dots within a minute.'
 	tput cup "12" "$(( (res_x/2)-20 ))"
 	echo -n 'Controls:'
 	tput cup "12" "$(( (res_x/2)-7 ))"
-	echo 'W,A,S,D (move)'
+	echo 'W,A,S,D / H,J,K,L (move)'
 	tput cup "13" "$(( (res_x/2)-7 ))"
 	echo 'Q - Quit game'
 	if ((highscore >= minscore)); then
 		tput cup 15 "$(( (res_x/2)-20 ))"
-		echo "High-score:  $highscore"
+		echo -e "High-score:  \e[1;m${highscore}\e[0m"
 	fi
 	tput cup 18 "$(( (res_x/2)-12 ))"
 	echo 'Press any key to start!'
