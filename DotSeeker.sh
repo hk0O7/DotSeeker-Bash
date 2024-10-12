@@ -127,16 +127,21 @@ function screen_win {
 	clear
 	tput cup "$(( (res_y/2)-1 ))" "$(( (res_x/2)-7 ))"
 	echo -e '\e[1;32mYOU ARE WINNER\e[0m'
-	if ((pointcount > highscore)); then
-		highscore_saved=0
+	local highscore_new=$((pointcount > highscore))
+	if ((highscore_new)); then
+		local highscore_saved=0 highscore_pattern highscore_lineno
 		highscore_pattern='^(highscore=)'"$highscore"'(.*)'
+		tput cup 0 0  # (for possible STDERR)
 		if highscore_lineno=$(grep -nE -m1 "$highscore_pattern" "$0" | cut -d: -f1); then
 			sed -ri "${highscore_lineno}s/${highscore_pattern}/\1${pointcount}\2/" "$0" && highscore_saved=1
 		fi
 		tput cup "$(( (res_y/2)+1 ))" "$(( (res_x/2)-7 ))"
-		echo -e '\e[1;33mNew high-score!\e[0m'
+		echo -ne '\e[1;33mNew high-score!'
+		if ! ((highscore_saved)); then
+			echo -e ' \e[0;31m(saving failed)\e[0m'
+		fi
 	fi
-	tput cup "$(( (res_y/2)+1+highscore_saved ))" "$(( (res_x/2)-5 ))"
+	tput cup "$(( (res_y/2)+1+highscore_new ))" "$(( (res_x/2)-5 ))"
 	echo -e '\e[1;32mScore: \e[1;34m'"$pointcount"'\e[0m'
 }
 
