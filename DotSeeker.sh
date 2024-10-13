@@ -198,6 +198,30 @@ function screen_title {
 	unset -v title_keystroke
 }
 
+function draw_boundaries {
+	local edge_char=$(printf '\e[7;90m \e[;0m')
+	local edge_margin_x=$(( $(tput cols) - res_x ))
+	local edge_margin_y=$(( $(tput lines) - res_y ))
+	if (( edge_margin_x > 0 )); then
+		local edge_piece=$edge_char
+		if (( edge_margin_x > 1 )); then
+			edge_piece+=$edge_char
+		fi
+		local y; for ((y=0;y<=res_y;y++)); do
+			tput cup $y $res_x
+			echo -n "$edge_piece"
+		done
+	fi
+	if (( edge_margin_y > 0 )); then
+		local edge_piece=''
+		local x; for ((x=0;x!=res_x;x++)); do
+			edge_piece+=$edge_char
+		done
+		tput cup $res_y 0
+		echo -n "$edge_piece"
+	fi
+}
+
 highscore=0  # (updated by program itself)
 
 dot=0
@@ -209,6 +233,7 @@ plr_ppos_y=$plr_cpos_y
 
 screen_title
 clear
+draw_boundaries
 
 time_start=$(( $(date +%s) + 1 ))
 tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
