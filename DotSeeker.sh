@@ -8,6 +8,7 @@ minscore=30
 time_limit=60
 res_y=24
 res_x=80
+frame_target_ns=40000000  # (per-frame time in nanoseconds)
 
 
 set -o pipefail
@@ -27,14 +28,14 @@ function update {
 	printf '4m%i\e[0m' $score
 	
 	tput cup "$plr_cpos_y" "$plr_cpos_x"
-	echo -ne "\e[1;47m  \e[0m"
+	printf '\e[1;47m  \e[0m'
 	if [[ $plr_cpos_x != $plr_ppos_x || $plr_cpos_y != $plr_ppos_y ]]; then
 		tput cup $plr_ppos_y $plr_ppos_x
-		echo -ne "\e[1;40m  \e[0m"
+		printf '\e[0m  '
 	fi
 	if [[ "$dot" = 1 && $dot_cpos_x != $plr_cpos_x && $dot_cpos_y != $plr_cpos_y ]]; then
 		tput cup "$dot_cpos_y" "$dot_cpos_x"
-		echo -ne "\e[1;43m  \e[0m"
+		printf '\e[1;43m  \e[0m'
 	fi
 }
 
@@ -72,18 +73,22 @@ function go {
 	esac
 }
 
-function input {
-	sleep 0.04
+function await_frame {
+	local now_ns=$(date +%s%N)
+	if [[ -n $last_frame_start_ns ]]; then
+		local delta_ns=$(( now_ns - last_frame_start_ns ))
+		local remaining_ns=$(( frame_target_ns - delta_ns ))
+		if (( remaining_ns > 0 )); then
+			local remaining_s=$(printf '0.%09d' $remaining_ns)
+			sleep $remaining_s
+		fi
+	fi
+	last_frame_start_ns=$(date +%s%N)
+}
 
+function input {
 	local lui ui
 	while read -rn1 -t 0.0001 ui; do lui=$ui; done  # (clears out the buffer while saving the last keystroke)
-
-	#local readtimens_target=50000000
-	#local readtimens_start=$(date +%s%N)
-	#read -rn1 -t "$(printf '0.%09d' $readtimens_target)" ui
-	#local readtimens_remaining=$(( readtimens_target - ( $(date +%s%N) - readtimens_start ) ))
-	#((readtimens_remaining > 0)) && sleep "$(printf '0.%09d' $readtimens_remaining)"
-	#utns_t=500000000; utns_b=$(date +%s%N); read -rsn1 -t "0.$utns_t" ui; utns_a=$(date +%s%N); utns_d=$(( utns_a - utns_b )); utns_r=$(( utns_t - utns_d )); ((utns_r > 0)) && sleep "0.$utns_r"; echo utns_d:$utns_d utns_r:$utns_r ui:$ui
 	case "$lui" in
 		[wWkK]) direction="up";;
 		[sSjJ]) direction="down";;
@@ -144,7 +149,7 @@ function screen_win {
 			sed -ri "${highscore_lineno}s/${highscore_pattern}/\1${score}\2/" "$0" && highscore_saved=1
 		fi
 		tput cup "$(( (res_y/2)+1 ))" "$(( (res_x/2)-7 ))"
-		echo -ne '\e[1;33mNew high-score!'
+		printf '\e[1;33mNew high-score!'
 		if ! ((highscore_saved)); then
 			echo -e ' \e[0;31m(saving failed)\e[0m'
 		fi
@@ -193,7 +198,7 @@ function screen_title {
 	unset -v title_keystroke
 }
 
-highscore=30  # (updated by program itself)
+highscore=0  # (updated by program itself)
 
 dot=0
 score=0
@@ -212,13 +217,14 @@ while (( $(date +%s) < time_start )); do
 	sleep 0.01
 done
 tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
-echo -ne "\e[1;40m            \e[0m"
+printf '\e[0m            '
 
 time_remaining=$time_limit
 
 update
 
 while [[ "loop" ]]; do
+	await_frame
 	input
 	time_delta=$(( $(date +%s) - time_start ))
 	time_remaining=$(( time_limit - time_delta ))
@@ -228,7 +234,6 @@ while [[ "loop" ]]; do
 	if ! ((dot)); then
 		dot_spawn
 	fi
-	#dot_check
 	if ((time_remaining == 0)); then
 		endgame
 		break
