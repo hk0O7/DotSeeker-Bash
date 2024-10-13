@@ -20,8 +20,11 @@ clear
 function update {
 	tput cup 0 0
 	printf '\e[1;32m\n  %2s' $time_remaining
-	tput cup "1" "$((res_x-2-${#dotcount}))"
-	echo -ne "\e[1;34m$dotcount\e[0m"
+	tput cup "1" "$((res_x-2-${#score}))"
+
+	printf '\e[1;'
+	if ((dot)); then printf 3; else printf 7; fi
+	printf '4m%i\e[0m' $score
 	
 	tput cup "$plr_cpos_y" "$plr_cpos_x"
 	echo -ne "\e[1;47m  \e[0m"
@@ -29,7 +32,7 @@ function update {
 		tput cup $plr_ppos_y $plr_ppos_x
 		echo -ne "\e[1;40m  \e[0m"
 	fi
-	if [[ "$dot" = "true" && $dot_cpos_x != $plr_cpos_x && $dot_cpos_y != $plr_cpos_y ]]; then
+	if [[ "$dot" = 1 && $dot_cpos_x != $plr_cpos_x && $dot_cpos_y != $plr_cpos_y ]]; then
 		tput cup "$dot_cpos_y" "$dot_cpos_x"
 		echo -ne "\e[1;43m  \e[0m"
 	fi
@@ -67,11 +70,11 @@ function go {
 			((plr_cpos_x+=2))
 			;;
 	esac
-	update
 }
 
 function input {
 	sleep 0.04
+
 	local lui ui
 	while read -rn1 -t 0.0001 ui; do lui=$ui; done  # (clears out the buffer while saving the last keystroke)
 
@@ -79,9 +82,7 @@ function input {
 	#local readtimens_start=$(date +%s%N)
 	#read -rn1 -t "$(printf '0.%09d' $readtimens_target)" ui
 	#local readtimens_remaining=$(( readtimens_target - ( $(date +%s%N) - readtimens_start ) ))
-	#((readtimens_remaining > 0)) && { sleep "$(printf '0.%09d' $readtimens_remaining)"; echo slept >> ./debug.txt; }
-	#echo readtimens_delta:$readtimens_delta readtimens_remaining:$readtimens_remaining >> ./debug.txt
-	#echo readtimens_remaining:$readtimens_remaining >> ./debug.txt
+	#((readtimens_remaining > 0)) && sleep "$(printf '0.%09d' $readtimens_remaining)"
 	#utns_t=500000000; utns_b=$(date +%s%N); read -rsn1 -t "0.$utns_t" ui; utns_a=$(date +%s%N); utns_d=$(( utns_a - utns_b )); utns_r=$(( utns_t - utns_d )); ((utns_r > 0)) && sleep "0.$utns_r"; echo utns_d:$utns_d utns_r:$utns_r ui:$ui
 	case "$lui" in
 		[wWkK]) direction="up";;
@@ -105,13 +106,13 @@ function control {
 function dot_spawn {
 	((dot_cpos_y=RANDOM%(res_y)))
 	((dot_cpos_x=(RANDOM%((res_x-2)/2))*2))
-	dot=true
+	dot=1
 }
 
 function dot_check {
-	if [[ "$dot" = "true" && "$plr_cpos_y" = "$dot_cpos_y" && "$plr_cpos_x" = "$dot_cpos_x" ]]; then
-		((dotcount++))
-		dot=false
+	if [[ "$dot" == 1 && "$plr_cpos_y" = "$dot_cpos_y" && "$plr_cpos_x" = "$dot_cpos_x" ]]; then
+		((score++))
+		dot=0
 		unset -v dot_cpos_y dot_cpos_x
 	fi
 }
@@ -134,13 +135,13 @@ function screen_win {
 	clear
 	tput cup "$(( (res_y/2)-1 ))" "$(( (res_x/2)-7 ))"
 	echo -e '\e[1;32mYOU ARE WINNER\e[0m'
-	local highscore_new=$((dotcount > highscore))
+	local highscore_new=$((score > highscore))
 	if ((highscore_new)); then
 		local highscore_saved=0 highscore_pattern highscore_lineno
 		highscore_pattern='^(highscore=)'"$highscore"'(.*)'
 		tput cup 0 0  # (for possible STDERR)
 		if highscore_lineno=$(grep -nE -m1 "$highscore_pattern" "$0" | cut -d: -f1); then
-			sed -ri "${highscore_lineno}s/${highscore_pattern}/\1${dotcount}\2/" "$0" && highscore_saved=1
+			sed -ri "${highscore_lineno}s/${highscore_pattern}/\1${score}\2/" "$0" && highscore_saved=1
 		fi
 		tput cup "$(( (res_y/2)+1 ))" "$(( (res_x/2)-7 ))"
 		echo -ne '\e[1;33mNew high-score!'
@@ -149,11 +150,11 @@ function screen_win {
 		fi
 	fi
 	tput cup "$(( (res_y/2)+1+highscore_new ))" "$(( (res_x/2)-5 ))"
-	echo -e '\e[1;32mScore: \e[1;34m'"$dotcount"'\e[0m'
+	echo -e '\e[1;32mScore: \e[1;34m'"$score"'\e[0m'
 }
 
 function endgame {
-	if [[ "$dotcount" -lt "$minscore" ]]; then
+	if [[ "$score" -lt "$minscore" ]]; then
 		screen_lose
 	else
 		screen_win
@@ -192,10 +193,10 @@ function screen_title {
 	unset -v title_keystroke
 }
 
-highscore=0  # (updated by program itself)
+highscore=30  # (updated by program itself)
 
-dot=false
-dotcount=0
+dot=0
+score=0
 ((plr_cpos_x=$res_x/2))
 plr_ppos_x=$plr_cpos_x
 ((plr_cpos_y=$res_y/2))
@@ -221,12 +222,13 @@ while [[ "loop" ]]; do
 	input
 	time_delta=$(( $(date +%s) - time_start ))
 	time_remaining=$(( time_limit - time_delta ))
-
 	control
-	if [[ "$dot" = "false" ]]; then
+	dot_check
+	update
+	if ! ((dot)); then
 		dot_spawn
 	fi
-	dot_check
+	#dot_check
 	if ((time_remaining == 0)); then
 		endgame
 		break
