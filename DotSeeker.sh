@@ -28,14 +28,15 @@ function update {
 	printf '4m%i\e[0m' $score
 	
 	tput cup "$plr_cpos_y" "$plr_cpos_x"
-	printf '\e[1;47m  \e[0m'
+	#printf '\e[1;47m  \e[0m'
+	printf "$plr_printf"
 	if [[ $plr_cpos_x != $plr_ppos_x || $plr_cpos_y != $plr_ppos_y ]]; then
 		tput cup $plr_ppos_y $plr_ppos_x
 		printf '\e[0m  '
 	fi
 	if [[ "$dot" = 1 && $dot_cpos_x != $plr_cpos_x && $dot_cpos_y != $plr_cpos_y ]]; then
 		tput cup "$dot_cpos_y" "$dot_cpos_x"
-		printf '\e[1;43m  \e[0m'
+		printf "$dot_printf"
 	fi
 }
 
@@ -174,7 +175,7 @@ function screen_title {
 	tput cup "4" "$(( (res_x/2)-6 ))"
 	echo '|\  ('
 	tput cup "5" "$(( (res_x/2)-6 ))"
-	echo '|/O'$([[ $(date +%m%d) == 1031 ]] && echo O)'T·)EEKER'
+	echo '|/O'`((sdm))&&echo O`'T·)EEKER'
 	tput cup "9" "$(( (res_x/2)-20 ))"
 	echo "Objective: Get ${minscore} dots within a minute."
 	tput cup "12" "$(( (res_x/2)-20 ))"
@@ -230,6 +231,7 @@ score=0
 plr_ppos_x=$plr_cpos_x
 ((plr_cpos_y=$res_y/2))
 plr_ppos_y=$plr_cpos_y
+((sdm=525262068==$(date +%d%m|cksum|cut -d' ' -f1)))
 
 screen_title
 clear
@@ -246,6 +248,7 @@ printf '\e[0m            '
 
 time_remaining=$time_limit
 
+((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
 update
 
 while [[ "loop" ]]; do
