@@ -18,6 +18,15 @@ stty -echo
 trap "safe_exit" EXIT
 clear
 
+function safe_exit {
+	local exit_code=${1:-$?}
+	stty echo
+	tput cnorm
+	if ((! exit_code)); then clear; fi
+	echo
+	exit $exit_code
+}
+
 function update {
 	tput cup 0 0
 	printf '\e[1;32m\n  %2s' $time_remaining
@@ -95,7 +104,7 @@ function input {
 		[sSjJ]) direction="down";;
 		[aAhH]) direction="left";;
 		[dDlL]) direction="right";;
-		q|Q) exit;;
+		[qQ]) exit 0;;
 	esac
 }
 
@@ -121,14 +130,6 @@ function dot_check {
 		dot=0
 		unset -v dot_cpos_y dot_cpos_x
 	fi
-}
-
-function safe_exit {
-	stty echo
-	tput cnorm
-	clear
-	echo
-	exit 0
 }
 
 function screen_lose {
@@ -167,7 +168,7 @@ function endgame {
 	fi
 	read -t1 -N9
 	read -n1
-	safe_exit
+	exit 0
 }
 
 function screen_title {
@@ -193,7 +194,7 @@ function screen_title {
 	read -t 0.5 -N9
 	read -n1 title_keystroke
 	case "$title_keystroke" in
-		Q|q) safe_exit;;
+		Q|q) exit 0;;
 		*) :;;
 	esac
 	unset -v title_keystroke
@@ -235,6 +236,10 @@ plr_ppos_y=$plr_cpos_y
 
 screen_title
 clear
+if (( $(tput cols) < res_x || $(tput lines) < res_y )); then
+	echo "ERROR: Insufficient terminal size/resolution; required minimum is $res_x x $res_y." >&2
+	exit 1
+fi
 draw_boundaries
 
 time_start=$(( $(date +%s) + 1 ))
