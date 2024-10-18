@@ -13,7 +13,7 @@ frame_target_ns=40000000  # (per-frame time in nanoseconds)
 
 set -o pipefail
 
-tput civis
+tput civis || { echo 'ERROR: ncurses / ncurses-bin missing. Try installing it.' >&2; exit 1; }
 stty -echo
 trap "safe_exit" EXIT
 clear
