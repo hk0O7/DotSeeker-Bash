@@ -1,6 +1,6 @@
 #!/bin/bash
 ## DotSeeker
-## Controls: WASD / HJKL
+## Controls: Arrow keys / WASD / HJKL
 ## Objective: Get 30 dots within a minute.
 
 
@@ -97,15 +97,36 @@ function await_frame {
 }
 
 function input {
-	local lui ui
-	while read -rn1 -t 0.0001 ui; do lui=$ui; done  # (clears out the buffer while saving the last keystroke)
-	case "$lui" in
-		[wWkK]) direction="up";;
-		[sSjJ]) direction="down";;
-		[aAhH]) direction="left";;
-		[dDlL]) direction="right";;
-		[qQ]) exit 0;;
-	esac
+	local lui ui arrowkey_seq=0
+	while read -rn1 -t 0.0001 ui; do
+		if ((arrowkey_seq == 3)); then
+			arrowkey_seq=0  # (last arrow key sequence invalidated as we're past its last expected char)
+		fi
+		if [[
+			( "$ui" == $'\033' && $arrowkey_seq -eq 0 ) ||
+				( "$ui" == '[' && $arrowkey_seq -eq 1 ) ||
+				( $arrowkey_seq -eq 2 )
+		]]; then
+			((arrowkey_seq++))  # (valid ongoing arrow key sequence so far)
+		fi
+		lui=$ui
+	done  # (clears out the buffer while saving the last keystroke)
+	if ((arrowkey_seq == 3)); then
+		case "$lui" in
+			A) direction=up;;
+			B) direction=down;;
+			C) direction=right;;
+			D) direction=left;;
+		esac
+	else
+		case "$lui" in
+			[wWkK]) direction=up;;
+			[sSjJ]) direction=down;;
+			[aAhH]) direction=left;;
+			[dDlL]) direction=right;;
+			[qQ]) exit 0;;
+		esac
+	fi
 }
 
 function control {
@@ -182,7 +203,7 @@ function screen_title {
 	tput cup "12" "$(( (res_x/2)-20 ))"
 	echo -n 'Controls:'
 	tput cup "12" "$(( (res_x/2)-7 ))"
-	echo 'W,A,S,D / H,J,K,L (move)'
+	echo 'Arrow keys / W,A,S,D / H,J,K,L (move)'
 	tput cup "13" "$(( (res_x/2)-7 ))"
 	echo 'Q - Quit game'
 	if ((highscore >= minscore)); then
