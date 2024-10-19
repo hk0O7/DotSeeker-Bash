@@ -258,6 +258,7 @@ highscore=0  # (updated by program itself)
 
 if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
 	me_url='https://raw.githubusercontent.com/hk0O7/DotSeeker-Bash/refs/heads/main/DotSeeker.sh'
+	me_url+="?token=$(date +%s)"  # (avoid possible version delays due to GitHub bug #46758)
 	echo 'Beginning update process...'
 	if ! [[ -O "$me" && -x "$me" && -w "$me" ]]; then
 		echo "ERROR: Cannot proceed due to lack of expected permissions in: $me" >&2
