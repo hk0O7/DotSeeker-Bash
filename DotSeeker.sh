@@ -281,6 +281,9 @@ if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
 	highscore_save 0 $highscore || echo "WARNING: Could not preserve current high-score: $highscore" >&2
 	echo 'Update complete.'
 	exit 0
+elif [[ -n "$1" ]]; then
+	echo "ERROR: Unrecognized parameter: $1" >&2
+	exit 1
 fi
 
 tput civis || { echo 'ERROR: ncurses / ncurses-bin missing. Try installing it.' >&2; exit 1; }
