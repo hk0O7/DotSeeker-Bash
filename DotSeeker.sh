@@ -23,8 +23,8 @@ function safe_exit {
 }
 
 function update {
-	tput cup 0 0
-	printf '\e[1;32m\n  %2s' $time_remaining
+	tput cup 1 0
+	printf '\e[1;32m  %2s\e[0m' $time_remaining
 	tput cup "1" "$((res_x-2-${#score}))"
 
 	printf '\e[1;'
@@ -37,7 +37,7 @@ function update {
 		tput cup $plr_ppos_y $plr_ppos_x
 		printf '\e[0m  '
 	fi
-	if [[ "$dot" = 1 && $dot_cpos_x != $plr_cpos_x && $dot_cpos_y != $plr_cpos_y ]]; then
+	if [[ "$dot" = 1 && ( $dot_cpos_x != $plr_cpos_x || $dot_cpos_y != $plr_cpos_y ) ]]; then
 		tput cup "$dot_cpos_y" "$dot_cpos_x"
 		printf "$dot_printf"
 	fi
@@ -134,8 +134,14 @@ function control {
 }
 
 function dot_spawn {
-	((dot_cpos_y=RANDOM%(res_y)))
-	((dot_cpos_x=(RANDOM%((res_x-2)/2))*2))
+	(( dot_cpos_y = RANDOM % res_y ))
+	while :; do
+		(( dot_cpos_x = ( RANDOM % ( (res_x-2)/2 ) ) * 2 ))
+		# Avoid interfering with timer / score count
+		if ! ((dot_cpos_y == 1 && ( dot_cpos_x == 0 || dot_cpos_x == 2 || dot_cpos_x == res_x - 4 ) ))
+		then break
+		fi
+	done
 	dot=1
 }
 
