@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 ## DotSeeker
 ## Controls: Arrow keys / WASD / HJKL
 ## Objective: Get 30 dots within a minute.
@@ -12,11 +12,6 @@ frame_target_ns=40000000  # (per-frame time in nanoseconds)
 
 
 set -o pipefail
-
-tput civis || { echo 'ERROR: ncurses / ncurses-bin missing. Try installing it.' >&2; exit 1; }
-stty -echo
-trap "safe_exit" EXIT
-clear
 
 function safe_exit {
 	local exit_code=${1:-$?}
@@ -37,7 +32,6 @@ function update {
 	printf '4m%i\e[0m' $score
 	
 	tput cup "$plr_cpos_y" "$plr_cpos_x"
-	#printf '\e[1;47m  \e[0m'
 	printf "$plr_printf"
 	if [[ $plr_cpos_x != $plr_ppos_x || $plr_cpos_y != $plr_ppos_y ]]; then
 		tput cup $plr_ppos_y $plr_ppos_x
@@ -159,18 +153,26 @@ function screen_lose {
 	echo -e "\e[1;31mYOU LOSE!\e[0m"
 }
 
+function highscore_save {
+	local highscore_pattern highscore_lineno new_score
+	old_score=$1
+	new_score=$2
+	highscore_pattern='^(highscore=)'"$old_score"'\>(.*)'
+	if highscore_lineno=$(grep -nE -m1 "$highscore_pattern" "$me" | cut -d: -f1); then
+		sed -ri "${highscore_lineno}s/${highscore_pattern}/\1${new_score}\2/" "$me" && return 0
+	fi
+	return 1
+}
+
 function screen_win {
 	clear
 	tput cup "$(( (res_y/2)-1 ))" "$(( (res_x/2)-7 ))"
 	echo -e '\e[1;32mYOU ARE WINNER\e[0m'
 	local highscore_new=$((score > highscore))
 	if ((highscore_new)); then
-		local highscore_saved=0 highscore_pattern highscore_lineno
-		highscore_pattern='^(highscore=)'"$highscore"'(.*)'
+		local highscore_saved=0
 		tput cup 0 0  # (for possible STDERR)
-		if highscore_lineno=$(grep -nE -m1 "$highscore_pattern" "$0" | cut -d: -f1); then
-			sed -ri "${highscore_lineno}s/${highscore_pattern}/\1${score}\2/" "$0" && highscore_saved=1
-		fi
+		highscore_save $highscore $score && highscore_saved=1
 		tput cup "$(( (res_y/2)+1 ))" "$(( (res_x/2)-7 ))"
 		printf '\e[1;33mNew high-score!'
 		if ! ((highscore_saved)); then
@@ -245,7 +247,47 @@ function draw_boundaries {
 	fi
 }
 
+me=$(readlink -e "${BASH_SOURCE[0]}")
 highscore=0  # (updated by program itself)
+
+if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
+	me_url='https://raw.githubusercontent.com/hk0O7/DotSeeker-Bash/refs/heads/main/DotSeeker.sh'
+	echo 'Beginning update process...'
+	if ! [[ -O "$me" && -x "$me" && -w "$me" ]]; then
+		echo "ERROR: Cannot proceed due to lack of expected permissions in: $me" >&2
+		exit 1
+	fi
+	echo 'Latest version to be downloaded from:'$'\n'"    $me_url"
+	read -p 'Proceed? [y/N] '
+	if ! grep -qEi '^y(e(s|h|ah?)?)?$' <<< $REPLY; then
+		echo 'Aborted.'
+		exit 0
+	fi
+	if which wget >/dev/null; then
+		me_new_cmd="wget -O - '$me_url'"
+	elif which curl >/dev/null; then
+		me_new_cmd="curl -L '$me_url'"
+	else
+		echo 'ERROR: No curl or wget present. Please make sure one of them is installed.' >&2
+		exit 1
+	fi
+	echo; if ! me_new=$(eval "$me_new_cmd") || [[ -z "$me_new" ]]; then
+		echo $'\n''ERROR: Could not download new version from URL:'$'\n'"    $me_url" >&2
+		echo '  It may have changed. Please look for the latest version manually.' >&2
+		exit 1
+	fi
+	echo "$me_new" > "$me" || exit 1
+	echo 'Successfully downloaded into current filepath:'$'\n'"  $me"
+	highscore_save 0 $highscore || echo "WARNING: Could not preserve current high-score: $highscore" >&2
+	echo 'Update complete.'
+	exit 0
+fi
+
+tput civis || { echo 'ERROR: ncurses / ncurses-bin missing. Try installing it.' >&2; exit 1; }
+stty -echo
+trap "safe_exit" EXIT
+clear
+
 
 dot=0
 score=0
