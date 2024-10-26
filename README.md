@@ -13,3 +13,6 @@ wget https://raw.githubusercontent.com/hk0O7/DotSeeker-Bash/refs/heads/main/DotS
 ```console
 ./DotSeeker.sh
 ```
+```console
+./DotSeeker.sh --no-sound
+```
