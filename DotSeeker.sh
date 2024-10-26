@@ -147,6 +147,7 @@ function dot_spawn {
 
 function dot_check {
 	if [[ "$dot" == 1 && "$plr_cpos_y" = "$dot_cpos_y" && "$plr_cpos_x" = "$dot_cpos_x" ]]; then
+		((sound)) && paplay "$s_dot_catch" &>/dev/null &
 		((score++))
 		dot=0
 		unset -v dot_cpos_y dot_cpos_x
@@ -157,6 +158,7 @@ function screen_lose {
 	clear
 	tput cup "$(( res_y/2 ))" "$(( (res_x/2)-5 ))"
 	echo -e "\e[1;31mYOU LOSE!\e[0m"
+	((sound)) && paplay "$s_lose" &>/dev/null &
 }
 
 function highscore_save {
@@ -174,6 +176,7 @@ function screen_win {
 	clear
 	tput cup "$(( (res_y/2)-1 ))" "$(( (res_x/2)-7 ))"
 	echo -e '\e[1;32mYOU ARE WINNER\e[0m'
+	((sound)) && paplay "$s_win" &>/dev/null &
 	local highscore_new=$((score > highscore))
 	if ((highscore_new)); then
 		local highscore_saved=0
@@ -288,6 +291,8 @@ if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
 	highscore_save 0 $highscore || echo "WARNING: Could not preserve current high-score: $highscore" >&2
 	echo 'Update complete.'
 	exit 0
+elif [[ "$1" == --no-sound ]]; then
+	sound=0
 elif [[ -n "$1" ]]; then
 	echo "ERROR: Unrecognized parameter: $1" >&2
 	exit 1
@@ -318,6 +323,19 @@ draw_boundaries
 time_start=$(( $(date +%s) + 1 ))
 tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
 echo '"Loading"...'
+
+# Sound setup & check
+s_dot_catch='/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga'
+s_lose='/usr/share/sounds/freedesktop/stereo/onboard-key-feedback.oga'
+s_win='/usr/share/sounds/freedesktop/stereo/complete.oga'
+if [[ -z "$sound" ]]; then
+	if which paplay &>/dev/null && [[ -f "$s_dot_catch" && -f "$s_lose" && -f "$s_win" ]]; then
+		sound=1
+	else sound=0
+	fi
+fi
+
+# Sync game timer with system seconds
 while (( $(date +%s) < time_start )); do
 	sleep 0.01
 done
