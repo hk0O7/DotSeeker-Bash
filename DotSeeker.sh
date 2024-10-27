@@ -327,6 +327,9 @@ echo '"Loading"...'
 # Sound setup & check
 s_dot_catch='/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga'
 s_lose='/usr/share/sounds/freedesktop/stereo/onboard-key-feedback.oga'
+if [[ ! -f "$s_lose" ]]; then
+	s_lose='/usr/share/sounds/freedesktop/stereo/trash-empty.oga'
+fi
 s_win='/usr/share/sounds/freedesktop/stereo/complete.oga'
 if [[ -z "$sound" ]]; then
 	if which paplay &>/dev/null && [[ -f "$s_dot_catch" && -f "$s_lose" && -f "$s_win" ]]; then
