@@ -23,10 +23,10 @@ function safe_exit {
 }
 
 function update {
-	tput cup 1 0
-	printf '\e[1;32m  %2s\e[0m' $time_remaining
-	tput cup "1" "$((res_x-2-${#score}))"
+	tput cup 1 2
+	printf '\e[1;32m%2s\e[0m' $time_remaining
 
+	tput cup "1" "$((res_x-2-${#score}))"
 	printf '\e[1;'
 	if ((dot)); then printf 3; else printf 7; fi
 	printf '4m%i\e[0m' $score
