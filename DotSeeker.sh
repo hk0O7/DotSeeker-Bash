@@ -22,6 +22,13 @@ function safe_exit {
 	exit $exit_code
 }
 
+function debug {
+	local msg="$*"
+	if [[ ${DEBUG:-0} == 1 ]]; then
+		echo "${FUNCNAME[1]:+${FUNCNAME[1]}(): }${msg}" >> ./DotSeeker_debug.txt
+	fi
+}
+
 function update {
 	tput cup 1 2
 	printf '\e[1;32m%2s\e[0m' $time_remaining
@@ -31,16 +38,39 @@ function update {
 	if ((dot)); then printf 3; else printf 7; fi
 	printf '4m%i\e[0m' $score
 	
-	tput cup "$plr_cpos_y" "$plr_cpos_x"
-	printf "$plr_printf"
+	if ((plr_pwarp)); then
+		debug $plr_ppos_y
+		local y; for ((y=arrow_pos_y; y!=plr_ppos_y; y--)); do
+			tput cup $y $plr_ppos_x
+			printf '\e[0m  '
+		done
+	fi
 	if [[ $plr_cpos_x != $plr_ppos_x || $plr_cpos_y != $plr_ppos_y ]]; then
 		tput cup $plr_ppos_y $plr_ppos_x
 		printf '\e[0m  '
 	fi
+	if ((plr_cwarp)); then
+		local y; for ((y=arrow_pos_y; y>=plr_cpos_y; y--)); do
+			#debug y:$y
+			tput cup $y $plr_cpos_x
+			#printf "$plr_printf"
+			printf '\e[48;5;%dm  \e[0m' $((255 - y))
+			dot_check $plr_cpos_x $y
+		done
+	fi
+	tput cup "$plr_cpos_y" "$plr_cpos_x"
+	printf "$plr_printf"
 	if [[ "$dot" = 1 && ( $dot_cpos_x != $plr_cpos_x || $dot_cpos_y != $plr_cpos_y ) ]]; then
 		tput cup "$dot_cpos_y" "$dot_cpos_x"
 		printf "$dot_printf"
 	fi
+	if ! ((plr_cwarp)); then
+		tput cup "$arrow_pos_y" "$arrow_pos_x"
+		printf '^^'
+	fi
+	debug direction:$direction
+	#((plr_cwarp || plr_pwarp)) && sleep 1
+	#sleep .2
 }
 
 function go {
@@ -142,16 +172,31 @@ function dot_spawn {
 		then break
 		fi
 	done
+	#dot_cpos_y=19 dot_cpos_x=52 #TODO DEBUG
 	dot=1
 }
 
 function dot_check {
-	if [[ "$dot" == 1 && "$plr_cpos_y" = "$dot_cpos_y" && "$plr_cpos_x" = "$dot_cpos_x" ]]; then
+	local x=$1 y=$2
+	if [[ "$dot" == 1 && "$y" = "$dot_cpos_y" && "$x" = "$dot_cpos_x" ]]; then
 		((sound)) && paplay "$s_dot_catch" &>/dev/null &
 		((score++))
 		dot=0
 		unset -v dot_cpos_y dot_cpos_x
 	fi
+}
+
+function arrow_check {
+	plr_pwarp=${plr_cwarp:-0}
+	if ((plr_cpos_x == arrow_pos_x && plr_cpos_y == arrow_pos_y)); then
+		plr_cwarp=1
+		plr_cpos_y=0
+		#direction=none
+		((sound)) && paplay "$s_warp" &>/dev/null &
+	else
+		plr_cwarp=0
+	fi
+	debug $plr_cwarp
 }
 
 function screen_lose {
@@ -326,6 +371,7 @@ echo '"Loading"...'
 
 # Sound setup & check
 s_dot_catch='/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga'
+s_warp='/usr/share/sounds/freedesktop/stereo/camera-shutter.oga'
 s_lose='/usr/share/sounds/freedesktop/stereo/onboard-key-feedback.oga'
 if [[ ! -f "$s_lose" ]]; then
 	s_lose='/usr/share/sounds/freedesktop/stereo/trash-empty.oga'
@@ -347,6 +393,10 @@ printf '\e[0m            '
 
 time_remaining=$time_limit
 
+# New arrow (feature test)
+arrow_pos_y=$((res_y - 1))
+arrow_pos_x=$((res_x * 2/3)); ((arrow_pos_x % 2)) && ((arrow_pos_x -= 1))
+
 ((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
 update
 
@@ -356,7 +406,8 @@ while [[ "loop" ]]; do
 	time_delta=$(( $(date +%s) - time_start ))
 	time_remaining=$(( time_limit - time_delta ))
 	control
-	dot_check
+	dot_check $plr_cpos_x $plr_cpos_y
+	arrow_check
 	update
 	if ! ((dot)); then
 		dot_spawn
