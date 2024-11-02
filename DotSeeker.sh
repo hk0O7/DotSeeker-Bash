@@ -13,7 +13,7 @@ frame_target_ns=40000000  # (per-frame time in nanoseconds)
 
 set -o pipefail
 
-function safe_exit {
+safe_exit() {
 	local exit_code=${1:-$?}
 	stty echo
 	tput cnorm
@@ -22,14 +22,14 @@ function safe_exit {
 	exit $exit_code
 }
 
-function debug {
+debug() {
 	local msg="$*"
 	if [[ ${DEBUG:-0} == 1 ]]; then
 		echo "${FUNCNAME[1]:+${FUNCNAME[1]}(): }${msg}" >> ./DotSeeker_debug.txt
 	fi
 }
 
-function update {
+update() {
 	tput cup 1 2
 	printf '\e[1;32m%2s\e[0m' $time_remaining
 
@@ -66,7 +66,7 @@ function update {
 	fi
 }
 
-function go {
+go() {
 	plr_ppos_x=$plr_cpos_x plr_ppos_y=$plr_cpos_y
 	case "$1" in
 		"up")
@@ -100,7 +100,7 @@ function go {
 	esac
 }
 
-function await_frame {
+await_frame() {
 	local now_ns=$(date +%s%N)
 	if [[ -n $last_frame_start_ns ]]; then
 		local delta_ns=$(( now_ns - last_frame_start_ns ))
@@ -113,7 +113,7 @@ function await_frame {
 	last_frame_start_ns=$(date +%s%N)
 }
 
-function input {
+input() {
 	local lui ui arrowkey_seq=0
 	while read -rn1 -t 0.0001 ui; do
 		if ((arrowkey_seq == 3)); then
@@ -146,7 +146,7 @@ function input {
 	fi
 }
 
-function control {
+control() {
 	case "$direction" in
 		up) go up;;
 		down) go down;;
@@ -156,7 +156,7 @@ function control {
 	esac
 }
 
-function dot_spawn {
+dot_spawn() {
 	(( dot_cpos_y = RANDOM % res_y ))
 	while :; do
 		(( dot_cpos_x = ( RANDOM % ( (res_x-2)/2 ) ) * 2 ))
@@ -168,7 +168,7 @@ function dot_spawn {
 	dot=1
 }
 
-function dot_check {
+dot_check() {
 	local x=$1 y=$2
 	if [[ "$dot" == 1 && "$y" = "$dot_cpos_y" && "$x" = "$dot_cpos_x" ]]; then
 		((sound)) && paplay "$s_dot_catch" &>/dev/null &
@@ -178,7 +178,7 @@ function dot_check {
 	fi
 }
 
-function arrow_check {
+arrow_check() {
 	plr_pwarp=${plr_cwarp:-0}
 	plr_cwarp=1
 	if ((plr_cpos_x == arrow_t_pos_x && plr_cpos_y == arrow_t_pos_y)); then
@@ -199,7 +199,7 @@ function arrow_check {
 	((plr_cwarp && sound)) && paplay "$s_warp" &>/dev/null &
 }
 
-function warp_line {
+warp_line() {
 	local action=${1:-draw}
 	debug "action:$action; plr_warp_direction:$plr_warp_direction"
 
@@ -242,14 +242,14 @@ function warp_line {
 	done
 }
 
-function screen_lose {
+screen_lose() {
 	clear
 	tput cup "$(( res_y/2 ))" "$(( (res_x/2)-5 ))"
 	echo -e "\e[1;31mYOU LOSE!\e[0m"
 	((sound)) && paplay "$s_lose" &>/dev/null &
 }
 
-function highscore_save {
+highscore_save() {
 	local highscore_pattern highscore_lineno new_score
 	old_score=$1
 	new_score=$2
@@ -260,7 +260,7 @@ function highscore_save {
 	return 1
 }
 
-function screen_win {
+screen_win() {
 	clear
 	tput cup "$(( (res_y/2)-1 ))" "$(( (res_x/2)-7 ))"
 	echo -e '\e[1;32mYOU ARE WINNER\e[0m'
@@ -280,7 +280,7 @@ function screen_win {
 	echo -e '\e[1;32mScore: \e[1;34m'"$score"'\e[0m'
 }
 
-function endgame {
+endgame() {
 	if [[ "$score" -lt "$minscore" ]]; then
 		screen_lose
 	else
@@ -291,7 +291,7 @@ function endgame {
 	exit 0
 }
 
-function screen_title {
+screen_title() {
 	clear
 	tput cup "4" "$(( (res_x/2)-6 ))"
 	echo '|\  ('
@@ -320,7 +320,7 @@ function screen_title {
 	unset -v title_keystroke
 }
 
-function draw_boundaries {
+draw_boundaries() {
 	local edge_char=$(printf '\e[7;90m \e[;0m')
 	local edge_margin_x=$(( $(tput cols) - res_x ))
 	local edge_margin_y=$(( $(tput lines) - res_y ))
