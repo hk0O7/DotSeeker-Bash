@@ -39,24 +39,14 @@ function update {
 	printf '4m%i\e[0m' $score
 	
 	if ((plr_pwarp)); then
-		debug $plr_ppos_y
-		local y; for ((y=arrow_pos_y; y!=plr_ppos_y; y--)); do
-			tput cup $y $plr_ppos_x
-			printf '\e[0m  '
-		done
+		warp_line clean
 	fi
 	if [[ $plr_cpos_x != $plr_ppos_x || $plr_cpos_y != $plr_ppos_y ]]; then
 		tput cup $plr_ppos_y $plr_ppos_x
 		printf '\e[0m  '
 	fi
 	if ((plr_cwarp)); then
-		local y; for ((y=arrow_pos_y; y>=plr_cpos_y; y--)); do
-			#debug y:$y
-			tput cup $y $plr_cpos_x
-			#printf "$plr_printf"
-			printf '\e[48;5;%dm  \e[0m' $((255 - y))
-			dot_check $plr_cpos_x $y
-		done
+		warp_line draw
 	fi
 	tput cup "$plr_cpos_y" "$plr_cpos_x"
 	printf "$plr_printf"
@@ -65,10 +55,15 @@ function update {
 		printf "$dot_printf"
 	fi
 	if ! ((plr_cwarp)); then
-		tput cup "$arrow_pos_y" "$arrow_pos_x"
+		tput cup $arrow_t_pos_y $arrow_t_pos_x
+		printf '\/'
+		tput cup $arrow_b_pos_y $arrow_b_pos_x
 		printf '^^'
+		tput cup $arrow_l_pos_y $arrow_l_pos_x
+		printf '>>'
+		tput cup $arrow_r_pos_y $arrow_r_pos_x
+		printf '<<'
 	fi
-	debug direction:$direction
 	#((plr_cwarp || plr_pwarp)) && sleep 1
 	#sleep .2
 }
@@ -172,7 +167,6 @@ function dot_spawn {
 		then break
 		fi
 	done
-	#dot_cpos_y=19 dot_cpos_x=52 #TODO DEBUG
 	dot=1
 }
 
@@ -188,15 +182,82 @@ function dot_check {
 
 function arrow_check {
 	plr_pwarp=${plr_cwarp:-0}
-	if ((plr_cpos_x == arrow_pos_x && plr_cpos_y == arrow_pos_y)); then
-		plr_cwarp=1
+	plr_cwarp=1
+	if ((plr_cpos_x == arrow_t_pos_x && plr_cpos_y == arrow_t_pos_y)); then
+		plr_cpos_y=$((res_y - 1))
+		plr_warp_direction=down
+	elif ((plr_cpos_x == arrow_b_pos_x && plr_cpos_y == arrow_b_pos_y)); then
 		plr_cpos_y=0
-		#direction=none
-		((sound)) && paplay "$s_warp" &>/dev/null &
+		plr_warp_direction=up
+	elif ((plr_cpos_x == arrow_l_pos_x && plr_cpos_y == arrow_l_pos_y)); then
+		plr_cpos_x=$((res_x - 2))
+		plr_warp_direction=right
+	elif ((plr_cpos_x == arrow_r_pos_x && plr_cpos_y == arrow_r_pos_y)); then
+		plr_cpos_x=0
+		plr_warp_direction=left
 	else
 		plr_cwarp=0
 	fi
 	debug $plr_cwarp
+	((plr_cwarp && sound)) && paplay "$s_warp" &>/dev/null &
+}
+
+function warp_line {
+	local action=${1:-draw}
+	debug "action:$action; plr_warp_direction:$plr_warp_direction"
+
+	local axis i_start i_step; case $plr_warp_direction in
+		up) axis=y i_start=$arrow_b_pos_y i_step=-1 ;;
+		down) axis=y i_start=$arrow_t_pos_y i_step=1 ;;
+		right) axis=x i_start=$arrow_l_pos_x i_step=2 ;;
+		left) axis=x i_start=$arrow_r_pos_x i_step=-2 ;;
+		*) return 1 ;;
+	esac
+
+	local i_target
+	if [[ $action == draw ]]; then eval i_target="\$plr_cpos_${axis}"
+	else eval i_target="\$plr_ppos_${axis}"
+	fi
+
+	local tput_args_draw tput_args_clean dot_check_args
+	if [[ $axis == x ]]; then
+		#tput_args="\$plr_cpos_${axis} \$i"
+		#dot_check_args="\$i \$plr_cpos_${axis} \$i"
+		#if [[ $action == draw ]]; then tput_args="$plr_cpos_y \$i"
+		#else tput_args="$plr_ppos_y \$i"
+		#fi
+		tput_args_draw="$plr_cpos_y \$i"
+		tput_args_clean="$plr_ppos_y \$i"
+		dot_check_args="\$i $plr_cpos_y"
+	else
+		#tput_args="\$i \$plr_cpos_${axis}"
+		#dot_check_args="\$plr_cpos_${axis} \$i"
+		#if [[ $action == draw ]]; then tput_args="\$i $plr_cpos_x"
+		#else tput_args"\$i $plr_ppos_x"
+		#fi
+		tput_args_draw="\$i $plr_cpos_x"
+		tput_args_clean="\$i $plr_ppos_x"
+		dot_check_args="$plr_cpos_x \$i"
+	fi
+
+	local i color_val=232; for ((i = i_start; i != i_target; i += i_step)); do
+		if [[ $action == 'draw' ]]; then
+			eval tput cup "$tput_args_draw"
+			debug drawing $axis $i
+			#printf '\e[48;5;%dm  \e[0m' $((255 - y))
+			#printf '\e[48;5;%dm  \e[0m' $((255 + i_step))
+			#printf '\e[48;5;%dm%s\e[0m' $(( 255 + ( i * ( ( ( i < 0 ) * 2 ) - 1 ) ) )) "$printf_s"
+			printf '\e[48;5;%dm  \e[0m' "$color_val"
+			((color_val != 255 && color_val++))
+			#dot_check $plr_cpos_x $y
+			eval dot_check "$dot_check_args"
+		else
+			#tput cup $i $plr_ppos_x
+			eval tput cup "$tput_args_clean"
+			debug cleaning $axis $i
+			printf '\e[0m  '
+		fi
+	done
 }
 
 function screen_lose {
@@ -393,9 +454,15 @@ printf '\e[0m            '
 
 time_remaining=$time_limit
 
-# New arrow (feature test)
-arrow_pos_y=$((res_y - 1))
-arrow_pos_x=$((res_x * 2/3)); ((arrow_pos_x % 2)) && ((arrow_pos_x -= 1))
+# Warp arrow positions
+arrow_t_pos_x=$((res_x * 1/3)); ((arrow_t_pos_x % 2)) && ((arrow_t_pos_x += 2))
+arrow_t_pos_y=0
+arrow_b_pos_x=$((res_x * 2/3)); ((arrow_b_pos_x % 2)) && ((arrow_b_pos_x -= 1))
+arrow_b_pos_y=$((res_y - 1))
+arrow_l_pos_x=0
+arrow_l_pos_y=$((res_y * 2/3))
+arrow_r_pos_x=$((res_x - 2))
+arrow_r_pos_y=$((res_y * 1/3))
 
 ((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
 update
