@@ -22,6 +22,13 @@ function safe_exit {
 	exit $exit_code
 }
 
+function debug {
+	local msg="$*"
+	if [[ ${DEBUG:-0} == 1 ]]; then
+		echo "${FUNCNAME[1]:+${FUNCNAME[1]}(): }${msg}" >> ./DotSeeker_debug.txt
+	fi
+}
+
 function update {
 	tput cup 1 2
 	printf '\e[1;32m%2s\e[0m' $time_remaining
@@ -31,15 +38,31 @@ function update {
 	if ((dot)); then printf 3; else printf 7; fi
 	printf '4m%i\e[0m' $score
 	
-	tput cup "$plr_cpos_y" "$plr_cpos_x"
-	printf "$plr_printf"
+	if ((plr_pwarp)); then
+		warp_line clean
+	fi
 	if [[ $plr_cpos_x != $plr_ppos_x || $plr_cpos_y != $plr_ppos_y ]]; then
 		tput cup $plr_ppos_y $plr_ppos_x
 		printf '\e[0m  '
 	fi
+	if ((plr_cwarp)); then
+		warp_line draw
+	fi
+	tput cup "$plr_cpos_y" "$plr_cpos_x"
+	printf "$plr_printf"
 	if [[ "$dot" = 1 && ( $dot_cpos_x != $plr_cpos_x || $dot_cpos_y != $plr_cpos_y ) ]]; then
 		tput cup "$dot_cpos_y" "$dot_cpos_x"
 		printf "$dot_printf"
+	fi
+	if ! ((plr_cwarp)); then
+		tput cup $arrow_t_pos_y $arrow_t_pos_x
+		printf '\/'
+		tput cup $arrow_b_pos_y $arrow_b_pos_x
+		printf '/\'
+		tput cup $arrow_l_pos_y $arrow_l_pos_x
+		printf '>>'
+		tput cup $arrow_r_pos_y $arrow_r_pos_x
+		printf '<<'
 	fi
 }
 
@@ -146,12 +169,77 @@ function dot_spawn {
 }
 
 function dot_check {
-	if [[ "$dot" == 1 && "$plr_cpos_y" = "$dot_cpos_y" && "$plr_cpos_x" = "$dot_cpos_x" ]]; then
+	local x=$1 y=$2
+	if [[ "$dot" == 1 && "$y" = "$dot_cpos_y" && "$x" = "$dot_cpos_x" ]]; then
 		((sound)) && paplay "$s_dot_catch" &>/dev/null &
 		((score++))
 		dot=0
 		unset -v dot_cpos_y dot_cpos_x
 	fi
+}
+
+function arrow_check {
+	plr_pwarp=${plr_cwarp:-0}
+	plr_cwarp=1
+	if ((plr_cpos_x == arrow_t_pos_x && plr_cpos_y == arrow_t_pos_y)); then
+		plr_cpos_y=$((res_y - 1))
+		plr_warp_direction=down
+	elif ((plr_cpos_x == arrow_b_pos_x && plr_cpos_y == arrow_b_pos_y)); then
+		plr_cpos_y=0
+		plr_warp_direction=up
+	elif ((plr_cpos_x == arrow_l_pos_x && plr_cpos_y == arrow_l_pos_y)); then
+		plr_cpos_x=$((res_x - 2))
+		plr_warp_direction=right
+	elif ((plr_cpos_x == arrow_r_pos_x && plr_cpos_y == arrow_r_pos_y)); then
+		plr_cpos_x=0
+		plr_warp_direction=left
+	else
+		plr_cwarp=0
+	fi
+	((plr_cwarp && sound)) && paplay "$s_warp" &>/dev/null &
+}
+
+function warp_line {
+	local action=${1:-draw}
+	debug "action:$action; plr_warp_direction:$plr_warp_direction"
+
+	local axis i_start i_step; case $plr_warp_direction in
+		up) axis=y i_start=$arrow_b_pos_y i_step=-1 ;;
+		down) axis=y i_start=$arrow_t_pos_y i_step=1 ;;
+		right) axis=x i_start=$arrow_l_pos_x i_step=2 ;;
+		left) axis=x i_start=$arrow_r_pos_x i_step=-2 ;;
+		*) return 1 ;;
+	esac
+
+	local i_target
+	if [[ $action == draw ]]; then eval i_target="\$plr_cpos_${axis}"
+	else eval i_target="\$plr_ppos_${axis}"
+	fi
+
+	local tput_args_draw tput_args_clean dot_check_args
+	if [[ $axis == x ]]; then
+		tput_args_draw="$plr_cpos_y \$i"
+		tput_args_clean="$plr_ppos_y \$i"
+		dot_check_args="\$i $plr_cpos_y"
+	else
+		tput_args_draw="\$i $plr_cpos_x"
+		tput_args_clean="\$i $plr_ppos_x"
+		dot_check_args="$plr_cpos_x \$i"
+	fi
+
+	local i color_val=232; for ((i = i_start; i != i_target; i += i_step)); do
+		if [[ $action == 'draw' ]]; then
+			eval tput cup "$tput_args_draw"
+			debug drawing $axis $i
+			printf '\e[48;5;%dm  \e[0m' "$color_val"
+			((color_val != 255 && color_val++))
+			eval dot_check "$dot_check_args"
+		else
+			eval tput cup "$tput_args_clean"
+			debug cleaning $axis $i
+			printf '\e[0m  '
+		fi
+	done
 }
 
 function screen_lose {
@@ -326,6 +414,7 @@ echo '"Loading"...'
 
 # Sound setup & check
 s_dot_catch='/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga'
+s_warp='/usr/share/sounds/freedesktop/stereo/camera-shutter.oga'
 s_lose='/usr/share/sounds/freedesktop/stereo/onboard-key-feedback.oga'
 if [[ ! -f "$s_lose" ]]; then
 	s_lose='/usr/share/sounds/freedesktop/stereo/trash-empty.oga'
@@ -347,6 +436,16 @@ printf '\e[0m            '
 
 time_remaining=$time_limit
 
+# Warp arrow positions
+arrow_t_pos_x=$((res_x * 1/3)); ((arrow_t_pos_x % 2)) && ((arrow_t_pos_x += 2))
+arrow_t_pos_y=0
+arrow_b_pos_x=$((res_x * 2/3)); ((arrow_b_pos_x % 2)) && ((arrow_b_pos_x -= 1))
+arrow_b_pos_y=$((res_y - 1))
+arrow_l_pos_x=0
+arrow_l_pos_y=$((res_y * 2/3))
+arrow_r_pos_x=$((res_x - 2))
+arrow_r_pos_y=$((res_y * 1/3))
+
 ((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
 update
 
@@ -356,7 +455,8 @@ while [[ "loop" ]]; do
 	time_delta=$(( $(date +%s) - time_start ))
 	time_remaining=$(( time_limit - time_delta ))
 	control
-	dot_check
+	dot_check $plr_cpos_x $plr_cpos_y
+	arrow_check
 	update
 	if ! ((dot)); then
 		dot_spawn
