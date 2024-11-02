@@ -58,14 +58,12 @@ function update {
 		tput cup $arrow_t_pos_y $arrow_t_pos_x
 		printf '\/'
 		tput cup $arrow_b_pos_y $arrow_b_pos_x
-		printf '^^'
+		printf '/\'
 		tput cup $arrow_l_pos_y $arrow_l_pos_x
 		printf '>>'
 		tput cup $arrow_r_pos_y $arrow_r_pos_x
 		printf '<<'
 	fi
-	#((plr_cwarp || plr_pwarp)) && sleep 1
-	#sleep .2
 }
 
 function go {
@@ -198,7 +196,6 @@ function arrow_check {
 	else
 		plr_cwarp=0
 	fi
-	debug $plr_cwarp
 	((plr_cwarp && sound)) && paplay "$s_warp" &>/dev/null &
 }
 
@@ -221,20 +218,10 @@ function warp_line {
 
 	local tput_args_draw tput_args_clean dot_check_args
 	if [[ $axis == x ]]; then
-		#tput_args="\$plr_cpos_${axis} \$i"
-		#dot_check_args="\$i \$plr_cpos_${axis} \$i"
-		#if [[ $action == draw ]]; then tput_args="$plr_cpos_y \$i"
-		#else tput_args="$plr_ppos_y \$i"
-		#fi
 		tput_args_draw="$plr_cpos_y \$i"
 		tput_args_clean="$plr_ppos_y \$i"
 		dot_check_args="\$i $plr_cpos_y"
 	else
-		#tput_args="\$i \$plr_cpos_${axis}"
-		#dot_check_args="\$plr_cpos_${axis} \$i"
-		#if [[ $action == draw ]]; then tput_args="\$i $plr_cpos_x"
-		#else tput_args"\$i $plr_ppos_x"
-		#fi
 		tput_args_draw="\$i $plr_cpos_x"
 		tput_args_clean="\$i $plr_ppos_x"
 		dot_check_args="$plr_cpos_x \$i"
@@ -244,15 +231,10 @@ function warp_line {
 		if [[ $action == 'draw' ]]; then
 			eval tput cup "$tput_args_draw"
 			debug drawing $axis $i
-			#printf '\e[48;5;%dm  \e[0m' $((255 - y))
-			#printf '\e[48;5;%dm  \e[0m' $((255 + i_step))
-			#printf '\e[48;5;%dm%s\e[0m' $(( 255 + ( i * ( ( ( i < 0 ) * 2 ) - 1 ) ) )) "$printf_s"
 			printf '\e[48;5;%dm  \e[0m' "$color_val"
 			((color_val != 255 && color_val++))
-			#dot_check $plr_cpos_x $y
 			eval dot_check "$dot_check_args"
 		else
-			#tput cup $i $plr_ppos_x
 			eval tput cup "$tput_args_clean"
 			debug cleaning $axis $i
 			printf '\e[0m  '
