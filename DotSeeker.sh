@@ -70,28 +70,28 @@ go() {
 	plr_ppos_x=$plr_cpos_x plr_ppos_y=$plr_cpos_y
 	case "$1" in
 		"up")
-			if [[ "$plr_cpos_y" -le "0" ]]; then
+			if ((plr_cpos_y <= 0)); then
 				update
 				return
 			fi
 			((plr_cpos_y--))
 			;;
 		"down")
-			if [[ "$plr_cpos_y" -ge "$((res_y-1))" ]]; then
+			if ((plr_cpos_y >= res_y - 1)); then
 				update
 				return
 			fi
 			((plr_cpos_y++))
 			;;
 		"left")
-			if [[ "$plr_cpos_x" -le "0" ]]; then
+			if ((plr_cpos_x <= 0)); then
 				update
 				return
 			fi
 			((plr_cpos_x-=2))
 			;;
 		"right")
-			if [[ "$plr_cpos_x" -ge "$((res_x-3))" ]]; then
+			if ((plr_cpos_x >= res_x - 3)); then
 				update
 				return
 			fi
@@ -356,7 +356,7 @@ if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
 		exit 1
 	fi
 	echo 'Latest version to be downloaded from:'$'\n'"    $me_url"
-	read -p 'Proceed? [y/N] '
+	read -r -p 'Proceed? [y/N] '
 	if ! grep -qEi '^y(e(s|h|ah?)?)?$' <<< $REPLY; then
 		echo 'Aborted.'
 		exit 0
@@ -394,9 +394,9 @@ clear
 
 dot=0
 score=0
-((plr_cpos_x=$res_x/2))
+((plr_cpos_x=res_x/2))
 plr_ppos_x=$plr_cpos_x
-((plr_cpos_y=$res_y/2))
+((plr_cpos_y=res_y/2))
 plr_ppos_y=$plr_cpos_y
 ((sdm=525262068==$(date +%d%m|cksum|cut -d' ' -f1)))
 
@@ -449,7 +449,7 @@ arrow_r_pos_y=$((res_y * 1/3))
 ((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
 update
 
-while [[ "loop" ]]; do
+while [[ loop ]]; do
 	await_frame
 	input
 	time_delta=$(( $(date +%s) - time_start ))
