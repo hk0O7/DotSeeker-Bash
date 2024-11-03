@@ -160,12 +160,18 @@ control() {
 
 dot_spawn() {
 	(( dot_cpos_y = RANDOM % res_y )) ||:
-	while :; do
+	while ((1)); do
 		(( dot_cpos_x = ( RANDOM % ( (res_x-2)/2 ) ) * 2 )) ||:
-		# Avoid interfering with timer / score count
-		if ! ((dot_cpos_y == 1 && ( dot_cpos_x == 0 || dot_cpos_x == 2 || dot_cpos_x == res_x - 4 ) ))
-		then break
+		# Avoid interfering with timer, score counter and warp arrows
+		if ! ((
+			( dot_cpos_y == 1 && ( dot_cpos_x == 0 || dot_cpos_x == 2 || dot_cpos_x == res_x - 4 ) ) ||
+			( dot_cpos_x == arrow_t_pos_x && dot_cpos_y == arrow_t_pos_y ) ||
+			( dot_cpos_x == arrow_b_pos_x && dot_cpos_y == arrow_b_pos_y ) ||
+			( dot_cpos_x == arrow_l_pos_x && dot_cpos_y == arrow_l_pos_y ) ||
+			( dot_cpos_x == arrow_r_pos_x && dot_cpos_y == arrow_r_pos_y )
+		)); then break
 		fi
+		debug retrying
 	done
 	dot=1
 }
@@ -232,13 +238,11 @@ warp_line() {
 	local i color_val=232; for ((i = i_start; i != i_target; i += i_step)); do
 		if [[ $action == draw ]]; then
 			eval tput cup "$tput_args_draw"
-			debug drawing $axis $i
 			printf '\e[48;5;%dm  \e[0m' "$color_val"
 			((color_val != 255)) && ((color_val++))
 			eval dot_check "$dot_check_args"
 		else
 			eval tput cup "$tput_args_clean"
-			debug cleaning $axis $i
 			printf '\e[0m  '
 		fi
 	done
