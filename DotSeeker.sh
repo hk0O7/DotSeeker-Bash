@@ -101,12 +101,13 @@ go() {
 }
 
 await_frame() {
-	local now_ns=$(date +%s%N)
+	local now_ns delta_ns remaining_ns remaining_s
+	now_ns=$(date +%s%N)
 	if [[ -n $last_frame_start_ns ]]; then
-		local delta_ns=$(( now_ns - last_frame_start_ns ))
-		local remaining_ns=$(( frame_target_ns - delta_ns ))
+		delta_ns=$(( now_ns - last_frame_start_ns ))
+		remaining_ns=$(( frame_target_ns - delta_ns ))
 		if (( remaining_ns > 0 )); then
-			local remaining_s=$(printf '0.%09d' $remaining_ns)
+			remaining_s=$(printf '0.%09d' $remaining_ns)
 			sleep $remaining_s
 		fi
 	fi
@@ -286,8 +287,7 @@ endgame() {
 	else
 		screen_win
 	fi
-	read -t1 -N9
-	read -n1
+	read -r -t1 -N9; read -r -n1
 	exit 0
 }
 
@@ -311,8 +311,8 @@ screen_title() {
 	fi
 	tput cup 18 "$(( (res_x/2)-12 ))"
 	echo 'Press any key to start!'
-	read -t 0.5 -N9
-	read -n1 title_keystroke
+	read -r -t 0.5 -N9
+	read -r -n1 title_keystroke
 	case "$title_keystroke" in
 		Q|q) exit 0;;
 		*) :;;
@@ -324,8 +324,9 @@ draw_boundaries() {
 	local edge_char=$(printf '\e[7;90m \e[;0m')
 	local edge_margin_x=$(( $(tput cols) - res_x ))
 	local edge_margin_y=$(( $(tput lines) - res_y ))
+	local edge_piece
 	if (( edge_margin_x > 0 )); then
-		local edge_piece=$edge_char
+		edge_piece=$edge_char
 		if (( edge_margin_x > 1 )); then
 			edge_piece+=$edge_char
 		fi
@@ -335,7 +336,6 @@ draw_boundaries() {
 		done
 	fi
 	if (( edge_margin_y > 0 )); then
-		local edge_piece=''
 		local x; for ((x=0;x!=res_x;x++)); do
 			edge_piece+=$edge_char
 		done
