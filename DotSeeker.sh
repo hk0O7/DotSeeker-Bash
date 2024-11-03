@@ -11,7 +11,8 @@ res_x=80
 frame_target_ns=40000000  # (per-frame time in nanoseconds)
 
 
-set -o pipefail
+#set -o pipefail
+set -eEuo pipefail
 
 safe_exit() {
 	local exit_code=${1:-$?}
@@ -50,7 +51,7 @@ update() {
 	fi
 	tput cup "$plr_cpos_y" "$plr_cpos_x"
 	printf "$plr_printf"
-	if [[ "$dot" = 1 && ( $dot_cpos_x != $plr_cpos_x || $dot_cpos_y != $plr_cpos_y ) ]]; then
+	if [[ $dot = 1 && ( $dot_cpos_x != $plr_cpos_x || $dot_cpos_y != $plr_cpos_y ) ]]; then
 		tput cup "$dot_cpos_y" "$dot_cpos_x"
 		printf "$dot_printf"
 	fi
@@ -74,28 +75,28 @@ go() {
 				update
 				return
 			fi
-			((plr_cpos_y--))
+			((plr_cpos_y--)) ||:
 			;;
 		"down")
 			if ((plr_cpos_y >= res_y - 1)); then
 				update
 				return
 			fi
-			((plr_cpos_y++))
+			((plr_cpos_y++)) ||:
 			;;
 		"left")
 			if ((plr_cpos_x <= 0)); then
 				update
 				return
 			fi
-			((plr_cpos_x-=2))
+			((plr_cpos_x-=2)) ||:
 			;;
 		"right")
 			if ((plr_cpos_x >= res_x - 3)); then
 				update
 				return
 			fi
-			((plr_cpos_x+=2))
+			((plr_cpos_x+=2)) ||:
 			;;
 	esac
 }
@@ -103,7 +104,7 @@ go() {
 await_frame() {
 	local now_ns delta_ns remaining_ns remaining_s
 	now_ns=$(date +%s%N)
-	if [[ -n $last_frame_start_ns ]]; then
+	if [[ -n ${last_frame_start_ns:-} ]]; then
 		delta_ns=$(( now_ns - last_frame_start_ns ))
 		remaining_ns=$(( frame_target_ns - delta_ns ))
 		if (( remaining_ns > 0 )); then
@@ -121,23 +122,23 @@ input() {
 			arrowkey_seq=0  # (last arrow key sequence invalidated as we're past its last expected char)
 		fi
 		if [[
-			( "$ui" == $'\033' && $arrowkey_seq -eq 0 ) ||
-				( "$ui" == '[' && $arrowkey_seq -eq 1 ) ||
+			( $ui == $'\033' && $arrowkey_seq -eq 0 ) ||
+				( $ui == '[' && $arrowkey_seq -eq 1 ) ||
 				( $arrowkey_seq -eq 2 )
 		]]; then
-			((arrowkey_seq++))  # (valid ongoing arrow key sequence so far)
+			((arrowkey_seq++)) ||:  # (valid ongoing arrow key sequence so far)
 		fi
 		lui=$ui
-	done  # (clears out the buffer while saving the last keystroke)
+	done  # (clears out the buffer while catching the last keystroke)
 	if ((arrowkey_seq == 3)); then
-		case "$lui" in
+		case ${lui:-} in
 			A) direction=up;;
 			B) direction=down;;
 			C) direction=right;;
 			D) direction=left;;
 		esac
 	else
-		case "$lui" in
+		case ${lui:-} in
 			[wWkK]) direction=up;;
 			[sSjJ]) direction=down;;
 			[aAhH]) direction=left;;
@@ -158,9 +159,9 @@ control() {
 }
 
 dot_spawn() {
-	(( dot_cpos_y = RANDOM % res_y ))
+	(( dot_cpos_y = RANDOM % res_y )) ||:
 	while :; do
-		(( dot_cpos_x = ( RANDOM % ( (res_x-2)/2 ) ) * 2 ))
+		(( dot_cpos_x = ( RANDOM % ( (res_x-2)/2 ) ) * 2 )) ||:
 		# Avoid interfering with timer / score count
 		if ! ((dot_cpos_y == 1 && ( dot_cpos_x == 0 || dot_cpos_x == 2 || dot_cpos_x == res_x - 4 ) ))
 		then break
@@ -171,9 +172,9 @@ dot_spawn() {
 
 dot_check() {
 	local x=$1 y=$2
-	if [[ "$dot" == 1 && "$y" = "$dot_cpos_y" && "$x" = "$dot_cpos_x" ]]; then
+	if [[ $dot == 1 && $y == "$dot_cpos_y" && $x == "$dot_cpos_x" ]]; then
 		((sound)) && paplay "$s_dot_catch" &>/dev/null &
-		((score++))
+		((score++)) ||:
 		dot=0
 		unset -v dot_cpos_y dot_cpos_x
 	fi
@@ -229,11 +230,11 @@ warp_line() {
 	fi
 
 	local i color_val=232; for ((i = i_start; i != i_target; i += i_step)); do
-		if [[ $action == 'draw' ]]; then
+		if [[ $action == draw ]]; then
 			eval tput cup "$tput_args_draw"
 			debug drawing $axis $i
 			printf '\e[48;5;%dm  \e[0m' "$color_val"
-			((color_val != 255 && color_val++))
+			((color_val != 255)) && ((color_val++))
 			eval dot_check "$dot_check_args"
 		else
 			eval tput cup "$tput_args_clean"
@@ -282,12 +283,13 @@ screen_win() {
 }
 
 endgame() {
-	if [[ "$score" -lt "$minscore" ]]; then
+	if [[ $score -lt "$minscore" ]]; then
 		screen_lose
 	else
 		screen_win
 	fi
-	read -r -t1 -N9; read -r -n1
+	read -r -t1 -N9 ||:
+	read -r -n1 ||:
 	exit 0
 }
 
@@ -311,8 +313,8 @@ screen_title() {
 	fi
 	tput cup 18 "$(( (res_x/2)-12 ))"
 	echo 'Press any key to start!'
-	read -r -t 0.5 -N9
-	read -r -n1 title_keystroke
+	read -r -t 0.5 -N9 ||:
+	read -r -n1 title_keystroke ||:
 	case "$title_keystroke" in
 		Q|q) exit 0;;
 		*) :;;
@@ -347,7 +349,7 @@ draw_boundaries() {
 me=$(readlink -e "${BASH_SOURCE[0]}")
 highscore=0  # (updated by program itself)
 
-if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
+if grep -qE '^-([Uu]|-upd(8|ate))$' <<< ${1:-}; then
 	me_url='https://raw.githubusercontent.com/hk0O7/DotSeeker-Bash/refs/heads/main/DotSeeker.sh'
 	me_url+="?token=$(date +%s)"  # (avoid possible version delays due to GitHub bug #46758)
 	echo 'Beginning update process...'
@@ -356,7 +358,7 @@ if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
 		exit 1
 	fi
 	echo 'Latest version to be downloaded from:'$'\n'"    $me_url"
-	read -r -p 'Proceed? [y/N] '
+	read -r -p 'Proceed? [y/N] ' ||:
 	if ! grep -qEi '^y(e(s|h|ah?)?)?$' <<< $REPLY; then
 		echo 'Aborted.'
 		exit 0
@@ -379,9 +381,9 @@ if grep -qE '^-([Uu]|-upd(8|ate))$' <<< $1; then
 	highscore_save 0 $highscore || echo "WARNING: Could not preserve current high-score: $highscore" >&2
 	echo 'Update complete.'
 	exit 0
-elif [[ "$1" == --no-sound ]]; then
+elif [[ ${1:-} == --no-sound ]]; then
 	sound=0
-elif [[ -n "$1" ]]; then
+elif [[ -n "${1:-}" ]]; then
 	echo "ERROR: Unrecognized parameter: $1" >&2
 	exit 1
 fi
@@ -398,7 +400,8 @@ score=0
 plr_ppos_x=$plr_cpos_x
 ((plr_cpos_y=res_y/2))
 plr_ppos_y=$plr_cpos_y
-((sdm=525262068==$(date +%d%m|cksum|cut -d' ' -f1)))
+((sdm=525262068==$(date +%d%m|cksum|cut -d' ' -f1)))||:
+direction=none
 
 screen_title
 clear
@@ -420,7 +423,7 @@ if [[ ! -f "$s_lose" ]]; then
 	s_lose='/usr/share/sounds/freedesktop/stereo/trash-empty.oga'
 fi
 s_win='/usr/share/sounds/freedesktop/stereo/complete.oga'
-if [[ -z "$sound" ]]; then
+if [[ -z "${sound:-}" ]]; then
 	if which paplay &>/dev/null && [[ -f "$s_dot_catch" && -f "$s_lose" && -f "$s_win" ]]; then
 		sound=1
 	else sound=0
@@ -445,11 +448,12 @@ arrow_l_pos_x=0
 arrow_l_pos_y=$((res_y * 2/3))
 arrow_r_pos_x=$((res_x - 2))
 arrow_r_pos_y=$((res_y * 1/3))
+plr_cwarp=0 plr_pwarp=0
 
 ((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
 update
 
-while [[ loop ]]; do
+while ((1)); do
 	await_frame
 	input
 	time_delta=$(( $(date +%s) - time_start ))
