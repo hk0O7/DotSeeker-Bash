@@ -56,13 +56,21 @@ update() {
 		printf "$dot_printf"
 	fi
 	if ! ((plr_cwarp)); then
-		tput cup $arrow_t_pos_y $arrow_t_pos_x
+		tput cup $arrow_tl_pos_y $arrow_tl_pos_x
 		printf '\/'
-		tput cup $arrow_b_pos_y $arrow_b_pos_x
+		tput cup $arrow_tr_pos_y $arrow_tr_pos_x
+		printf '\/'
+		tput cup $arrow_bl_pos_y $arrow_bl_pos_x
 		printf '/\'
-		tput cup $arrow_l_pos_y $arrow_l_pos_x
+		tput cup $arrow_br_pos_y $arrow_br_pos_x
+		printf '/\'
+		tput cup $arrow_lt_pos_y $arrow_lt_pos_x
 		printf '>>'
-		tput cup $arrow_r_pos_y $arrow_r_pos_x
+		tput cup $arrow_lb_pos_y $arrow_lb_pos_x
+		printf '>>'
+		tput cup $arrow_rt_pos_y $arrow_rt_pos_x
+		printf '<<'
+		tput cup $arrow_rb_pos_y $arrow_rb_pos_x
 		printf '<<'
 	fi
 }
@@ -165,10 +173,14 @@ dot_spawn() {
 		# Avoid interfering with timer, score counter and warp arrows
 		if ! ((
 			( dot_cpos_y == 1 && ( dot_cpos_x == 0 || dot_cpos_x == 2 || dot_cpos_x == res_x - 4 ) ) ||
-			( dot_cpos_x == arrow_t_pos_x && dot_cpos_y == arrow_t_pos_y ) ||
-			( dot_cpos_x == arrow_b_pos_x && dot_cpos_y == arrow_b_pos_y ) ||
-			( dot_cpos_x == arrow_l_pos_x && dot_cpos_y == arrow_l_pos_y ) ||
-			( dot_cpos_x == arrow_r_pos_x && dot_cpos_y == arrow_r_pos_y )
+			( dot_cpos_x == arrow_tl_pos_x && dot_cpos_y == arrow_tl_pos_y ) ||
+			( dot_cpos_x == arrow_tr_pos_x && dot_cpos_y == arrow_tr_pos_y ) ||
+			( dot_cpos_x == arrow_bl_pos_x && dot_cpos_y == arrow_bl_pos_y ) ||
+			( dot_cpos_x == arrow_br_pos_x && dot_cpos_y == arrow_br_pos_y ) ||
+			( dot_cpos_x == arrow_lt_pos_x && dot_cpos_y == arrow_lt_pos_y ) ||
+			( dot_cpos_x == arrow_lb_pos_x && dot_cpos_y == arrow_lb_pos_y ) ||
+			( dot_cpos_x == arrow_rt_pos_x && dot_cpos_y == arrow_rt_pos_y ) ||
+			( dot_cpos_x == arrow_rb_pos_x && dot_cpos_y == arrow_rb_pos_y )
 		)); then break
 		fi
 		debug retrying
@@ -189,16 +201,28 @@ dot_check() {
 arrow_check() {
 	plr_pwarp=${plr_cwarp:-0}
 	plr_cwarp=1
-	if ((plr_cpos_x == arrow_t_pos_x && plr_cpos_y == arrow_t_pos_y)); then
+	if ((
+		( plr_cpos_x == arrow_tl_pos_x && plr_cpos_y == arrow_tl_pos_y ) ||
+		( plr_cpos_x == arrow_tr_pos_x && plr_cpos_y == arrow_tr_pos_y )
+	)); then
 		plr_cpos_y=$((res_y - 1))
 		plr_warp_direction=down
-	elif ((plr_cpos_x == arrow_b_pos_x && plr_cpos_y == arrow_b_pos_y)); then
+	elif ((
+		( plr_cpos_x == arrow_bl_pos_x && plr_cpos_y == arrow_bl_pos_y ) ||
+		( plr_cpos_x == arrow_br_pos_x && plr_cpos_y == arrow_br_pos_y )
+	)); then
 		plr_cpos_y=0
 		plr_warp_direction=up
-	elif ((plr_cpos_x == arrow_l_pos_x && plr_cpos_y == arrow_l_pos_y)); then
+	elif ((
+		( plr_cpos_x == arrow_lb_pos_x && plr_cpos_y == arrow_lb_pos_y ) ||
+		( plr_cpos_x == arrow_lt_pos_x && plr_cpos_y == arrow_lt_pos_y )
+	)); then
 		plr_cpos_x=$((res_x - 2))
 		plr_warp_direction=right
-	elif ((plr_cpos_x == arrow_r_pos_x && plr_cpos_y == arrow_r_pos_y)); then
+	elif ((
+		( plr_cpos_x == arrow_rt_pos_x && plr_cpos_y == arrow_rt_pos_y ) ||
+		( plr_cpos_x == arrow_rb_pos_x && plr_cpos_y == arrow_rb_pos_y )
+	)); then
 		plr_cpos_x=0
 		plr_warp_direction=left
 	else
@@ -212,10 +236,10 @@ warp_line() {
 	debug "action:$action; plr_warp_direction:$plr_warp_direction"
 
 	local axis i_start i_step; case $plr_warp_direction in
-		up) axis=y i_start=$arrow_b_pos_y i_step=-1 ;;
-		down) axis=y i_start=$arrow_t_pos_y i_step=1 ;;
-		right) axis=x i_start=$arrow_l_pos_x i_step=2 ;;
-		left) axis=x i_start=$arrow_r_pos_x i_step=-2 ;;
+		up) axis=y i_start=$arrow_br_pos_y i_step=-1 ;;
+		down) axis=y i_start=$arrow_tl_pos_y i_step=1 ;;
+		right) axis=x i_start=$arrow_lb_pos_x i_step=2 ;;
+		left) axis=x i_start=$arrow_rt_pos_x i_step=-2 ;;
 		*) return 1 ;;
 	esac
 
@@ -444,14 +468,22 @@ printf '\e[0m            '
 time_remaining=$time_limit
 
 # Warp arrow positions
-arrow_t_pos_x=$((res_x * 1/3)); ((arrow_t_pos_x % 2)) && ((arrow_t_pos_x += 2))
-arrow_t_pos_y=0
-arrow_b_pos_x=$((res_x * 2/3)); ((arrow_b_pos_x % 2)) && ((arrow_b_pos_x -= 1))
-arrow_b_pos_y=$((res_y - 1))
-arrow_l_pos_x=0
-arrow_l_pos_y=$((res_y * 2/3))
-arrow_r_pos_x=$((res_x - 2))
-arrow_r_pos_y=$((res_y * 1/3))
+arrow_tl_pos_x=$((res_x * 1/3)); ((arrow_tl_pos_x % 2)) && ((arrow_tl_pos_x -= 1))
+arrow_tl_pos_y=0
+arrow_tr_pos_x=$((res_x * 2/3)); ((arrow_tr_pos_x % 2)) && ((arrow_tr_pos_x -= 1))
+arrow_tr_pos_y=0
+arrow_bl_pos_x=$((res_x * 1/3)); ((arrow_bl_pos_x % 2)) && ((arrow_bl_pos_x -= 1))
+arrow_bl_pos_y=$((res_y - 1))
+arrow_br_pos_x=$((res_x * 2/3)); ((arrow_br_pos_x % 2)) && ((arrow_br_pos_x -= 1))
+arrow_br_pos_y=$((res_y - 1))
+arrow_lt_pos_x=0
+arrow_lt_pos_y=$((res_y * 1/3))
+arrow_lb_pos_x=0
+arrow_lb_pos_y=$((res_y * 2/3))
+arrow_rt_pos_x=$((res_x - 2))
+arrow_rt_pos_y=$((res_y * 1/3))
+arrow_rb_pos_x=$((res_x - 2))
+arrow_rb_pos_y=$((res_y * 2/3))
 plr_cwarp=0 plr_pwarp=0
 
 ((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
