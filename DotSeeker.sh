@@ -468,22 +468,23 @@ printf '\e[0m            '
 time_remaining=$time_limit
 
 # Warp arrow positions
-arrow_tl_pos_x=$((res_x * 1/3)); ((arrow_tl_pos_x % 2)) && ((arrow_tl_pos_x -= 1))
+arrow_tl_pos_x=$((res_x * 3/10)); ((arrow_tl_pos_x % 2)) && ((arrow_tl_pos_x -= 1))
 arrow_tl_pos_y=0
-arrow_tr_pos_x=$((res_x * 2/3)); ((arrow_tr_pos_x % 2)) && ((arrow_tr_pos_x -= 1))
+arrow_tr_pos_x=$((res_x * 7/10)); ((arrow_tr_pos_x % 2)) && ((arrow_tr_pos_x += 1))
 arrow_tr_pos_y=0
-arrow_bl_pos_x=$((res_x * 1/3)); ((arrow_bl_pos_x % 2)) && ((arrow_bl_pos_x -= 1))
+arrow_bl_pos_x=$((res_x * 3/10)); ((arrow_bl_pos_x % 2)) && ((arrow_bl_pos_x -= 1))
 arrow_bl_pos_y=$((res_y - 1))
-arrow_br_pos_x=$((res_x * 2/3)); ((arrow_br_pos_x % 2)) && ((arrow_br_pos_x -= 1))
+arrow_br_pos_x=$((res_x * 7/10)); ((arrow_br_pos_x % 2)) && ((arrow_br_pos_x += 1))
 arrow_br_pos_y=$((res_y - 1))
 arrow_lt_pos_x=0
-arrow_lt_pos_y=$((res_y * 1/3))
+arrow_lt_pos_y=$((res_y * 3/10))
 arrow_lb_pos_x=0
-arrow_lb_pos_y=$((res_y * 2/3))
+arrow_lb_pos_y=$((res_y * 7/10))
 arrow_rt_pos_x=$((res_x - 2))
-arrow_rt_pos_y=$((res_y * 1/3))
+arrow_rt_pos_y=$((res_y * 3/10))
 arrow_rb_pos_x=$((res_x - 2))
-arrow_rb_pos_y=$((res_y * 2/3))
+arrow_rb_pos_y=$((res_y * 7/10))
+
 plr_cwarp=0 plr_pwarp=0
 
 ((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
