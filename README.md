@@ -13,6 +13,7 @@ wget https://raw.githubusercontent.com/hk0O7/DotSeeker-Bash/refs/heads/main/DotS
 ```console
 ./DotSeeker.sh
 ```
+`xterm` recommended for [lowest latency](https://beuke.org/terminal-latency/).
 ```console
 ./DotSeeker.sh --no-sound
 ```
