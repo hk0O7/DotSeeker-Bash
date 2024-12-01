@@ -5,13 +5,12 @@
 
 
 minscore=30
-time_limit=60
+time_limit_s=60
 res_y=24
 res_x=80
 frame_target_ns=40000000  # (per-frame time in nanoseconds)
 
 
-#set -o pipefail
 set -eEuo pipefail
 
 safe_exit() {
@@ -32,7 +31,7 @@ debug() {
 
 update() {
 	tput cup 1 2
-	printf '\e[1;32m%2s\e[0m' $time_remaining
+	printf '\e[1;32m%2s\e[0m' $((time_remaining / 1000000000 ))
 
 	tput cup "1" "$((res_x-2-${#score}))"
 	printf '\e[1;'
@@ -281,7 +280,7 @@ screen_lose() {
 }
 
 highscore_save() {
-	local highscore_pattern highscore_lineno new_score
+	local highscore_pattern highscore_lineno old_score new_score
 	old_score=$1
 	new_score=$2
 	highscore_pattern='^(highscore=)'"$old_score"'\>(.*)'
@@ -306,6 +305,7 @@ screen_win() {
 		if ! ((highscore_saved)); then
 			echo -e ' \e[0;31m(saving failed)\e[0m'
 		fi
+		highscore=$score
 	fi
 	tput cup "$(( (res_y/2)+1+highscore_new ))" "$(( (res_x/2)-5 ))"
 	echo -e '\e[1;32mScore: \e[1;34m'"$score"'\e[0m'
@@ -328,7 +328,9 @@ endgame() {
 	print_centered 'Press R to restart, or any other key to quit.'
 	read -r -t1 -N9 ||:
 	read -r -n1 ||:
-	exit 0
+	if [[ $REPLY =~ ^[rR]$ ]]; then do_setup=1
+	else exit 0
+	fi
 }
 
 screen_title() {
@@ -348,10 +350,10 @@ screen_title() {
 	tput cup "14" "$(( (res_x/2)-7 ))"
 	echo 'Q - Quit game'
 	if ((highscore >= minscore)); then
-		tput cup 15 "$(( (res_x/2)-20 ))"
+		tput cup 16 "$(( (res_x/2)-20 ))"
 		echo -e "High-score:  \e[1;m${highscore}\e[0m"
 	fi
-	tput cup 18
+	tput cup 19
 	print_centered 'Press any key to start!'
 	read -r -t 0.5 -N9 ||:
 	read -r -n1 title_keystroke ||:
@@ -394,7 +396,7 @@ setup() {
 	plr_ppos_x=$plr_cpos_x
 	((plr_cpos_y=res_y/2))
 	plr_ppos_y=$plr_cpos_y
-	direction=none
+	direction=''
 
 	clear
 	if (( $(tput cols) < res_x || $(tput lines) < res_y )); then
@@ -403,16 +405,8 @@ setup() {
 	fi
 	draw_boundaries
 
-	time_start=$(( $(date +%s) + 1 ))
-	# Sync game timer with system seconds
-	tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
-	echo '"Loading"...'
-	while (( $(date +%s) < time_start )); do
-		sleep 0.01
-	done
-	tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
-	printf '\e[0m            '
-
+	time_start=0
+	time_limit=$((time_limit_s * 1000000000))
 	time_remaining=$time_limit
 
 	plr_cwarp=0 plr_pwarp=0
@@ -466,6 +460,7 @@ fi
 tput civis || { echo 'ERROR: ncurses / ncurses-bin missing. Try installing it.' >&2; exit 1; }
 stty -echo
 trap "safe_exit" EXIT
+
 # Sound setup & check
 s_dot_catch='/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga'
 s_warp='/usr/share/sounds/freedesktop/stereo/camera-shutter.oga'
@@ -508,17 +503,17 @@ while ((1)); do
 	((do_setup)) && setup
 	await_frame
 	input
-	time_delta=$(( $(date +%s) - time_start ))
-	time_remaining=$(( time_limit - time_delta ))
+	if [[ -n $direction ]] && ! ((time_start)); then
+		time_start=$(date +%s%N)
+	fi
+	if ((time_start)); then
+		time_delta=$(( $(date +%s%N) - time_start ))
+		time_remaining=$(( time_limit - time_delta ))
+	fi
 	control
 	dot_check $plr_cpos_x $plr_cpos_y
 	arrow_check
 	update
-	if ! ((dot)); then
-		dot_spawn
-	fi
-	if ((time_remaining == 0)); then
-		endgame
-		break
-	fi
+	((dot)) || dot_spawn
+	((time_remaining <= 0)) && endgame
 done
