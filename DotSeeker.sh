@@ -151,6 +151,7 @@ input() {
 			[sSjJ]) direction=down;;
 			[aAhH]) direction=left;;
 			[dDlL]) direction=right;;
+			[rR]) do_setup=1;;
 			[qQ]) exit 0;;
 		esac
 	fi
@@ -310,12 +311,21 @@ screen_win() {
 	echo -e '\e[1;32mScore: \e[1;34m'"$score"'\e[0m'
 }
 
+print_centered() {
+	local msg=$*
+	local y
+	((y = ( $(tput cols) / 2 ) - ( ${#msg} / 2 ) ))
+	printf '\e[%iG%s' "$y" "$msg"
+}
+
 endgame() {
 	if [[ $score -lt "$minscore" ]]; then
 		screen_lose
 	else
 		screen_win
 	fi
+	printf '\n\n\n'
+	print_centered 'Press R to restart, or any other key to quit.'
 	read -r -t1 -N9 ||:
 	read -r -n1 ||:
 	exit 0
@@ -327,20 +337,22 @@ screen_title() {
 	echo '|\  ('
 	tput cup "5" "$(( (res_x/2)-6 ))"
 	echo '|/O'`((sdm))&&echo O`'T·)EEKER'
-	tput cup "9" "$(( (res_x/2)-20 ))"
-	echo "Objective: Get ${minscore} dots within a minute."
+	tput cup 9
+	print_centered "Objective: Get ${minscore} dots within a minute."
 	tput cup "12" "$(( (res_x/2)-20 ))"
 	echo -n 'Controls:'
 	tput cup "12" "$(( (res_x/2)-7 ))"
 	echo 'Arrow keys / W,A,S,D / H,J,K,L (move)'
 	tput cup "13" "$(( (res_x/2)-7 ))"
+	echo 'R - Restart game'
+	tput cup "14" "$(( (res_x/2)-7 ))"
 	echo 'Q - Quit game'
 	if ((highscore >= minscore)); then
 		tput cup 15 "$(( (res_x/2)-20 ))"
 		echo -e "High-score:  \e[1;m${highscore}\e[0m"
 	fi
-	tput cup 18 "$(( (res_x/2)-12 ))"
-	echo 'Press any key to start!'
+	tput cup 18
+	print_centered 'Press any key to start!'
 	read -r -t 0.5 -N9 ||:
 	read -r -n1 title_keystroke ||:
 	case "$title_keystroke" in
@@ -372,6 +384,41 @@ draw_boundaries() {
 		tput cup $res_y 0
 		echo -n "$edge_piece"
 	fi
+}
+
+setup() {
+	do_setup=0
+	dot=0
+	score=0
+	((plr_cpos_x=res_x/2))
+	plr_ppos_x=$plr_cpos_x
+	((plr_cpos_y=res_y/2))
+	plr_ppos_y=$plr_cpos_y
+	direction=none
+
+	clear
+	if (( $(tput cols) < res_x || $(tput lines) < res_y )); then
+		echo "ERROR: Insufficient terminal size/resolution; required minimum is $res_x x $res_y." >&2
+		exit 1
+	fi
+	draw_boundaries
+
+	time_start=$(( $(date +%s) + 1 ))
+	# Sync game timer with system seconds
+	tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
+	echo '"Loading"...'
+	while (( $(date +%s) < time_start )); do
+		sleep 0.01
+	done
+	tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
+	printf '\e[0m            '
+
+	time_remaining=$time_limit
+
+	plr_cwarp=0 plr_pwarp=0
+
+	((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
+	update
 }
 
 me=$(readlink -e "${BASH_SOURCE[0]}")
@@ -419,30 +466,6 @@ fi
 tput civis || { echo 'ERROR: ncurses / ncurses-bin missing. Try installing it.' >&2; exit 1; }
 stty -echo
 trap "safe_exit" EXIT
-clear
-
-
-dot=0
-score=0
-((plr_cpos_x=res_x/2))
-plr_ppos_x=$plr_cpos_x
-((plr_cpos_y=res_y/2))
-plr_ppos_y=$plr_cpos_y
-((sdm=525262068==$(date +%d%m|cksum|cut -d' ' -f1)))||:
-direction=none
-
-screen_title
-clear
-if (( $(tput cols) < res_x || $(tput lines) < res_y )); then
-	echo "ERROR: Insufficient terminal size/resolution; required minimum is $res_x x $res_y." >&2
-	exit 1
-fi
-draw_boundaries
-
-time_start=$(( $(date +%s) + 1 ))
-tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
-echo '"Loading"...'
-
 # Sound setup & check
 s_dot_catch='/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga'
 s_warp='/usr/share/sounds/freedesktop/stereo/camera-shutter.oga'
@@ -457,15 +480,6 @@ if [[ -z "${sound:-}" ]]; then
 	else sound=0
 	fi
 fi
-
-# Sync game timer with system seconds
-while (( $(date +%s) < time_start )); do
-	sleep 0.01
-done
-tput cup "$(( res_y/2 ))" "$(( (res_x/2)-3 ))"
-printf '\e[0m            '
-
-time_remaining=$time_limit
 
 # Warp arrow positions
 arrow_tl_pos_x=$((res_x * 3/10)); ((arrow_tl_pos_x % 2)) && ((arrow_tl_pos_x -= 1))
@@ -485,12 +499,13 @@ arrow_rt_pos_y=$((res_y * 3/10))
 arrow_rb_pos_x=$((res_x - 2))
 arrow_rb_pos_y=$((res_y * 7/10))
 
-plr_cwarp=0 plr_pwarp=0
+((sdm=525262068==$(date +%d%m|cksum|cut -d' ' -f1)))||:
+do_setup=1
 
-((sdm))&&dot_printf='\U1f3ba' plr_printf='\U1f480'||dot_printf='\e[1;43m  \e[0m' plr_printf='\e[1;47m  \e[0m'
-update
+screen_title
 
 while ((1)); do
+	((do_setup)) && setup
 	await_frame
 	input
 	time_delta=$(( $(date +%s) - time_start ))
